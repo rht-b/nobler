@@ -1,6 +1,6 @@
 CXX = g++
-CXXFLAGS =-Wall -std=c++11 -stdlib=libc++ -Iinc -I/usr/local/Cellar/rocksdb/6.14.6_1/include/rocksdb/ -g `pkg-config --cflags protobuf`
-LDFLAGS = -lm -lerasurecode -L /usr/local/Cellar/rocksdb/6.14.6_1/lib/ -lrocksdb -ldl -lpthread `pkg-config --libs protobuf`
+CXXFLAGS =-Wall -std=c++11 -Iinc -g `pkg-config --cflags protobuf`
+LDFLAGS = -lm -lerasurecode -lrocksdb -ldl -lpthread `pkg-config --libs protobuf`
 
 
 src = $(wildcard src/*.cpp)
@@ -18,6 +18,10 @@ obj4 = $(filter-out obj/Client_driver.o obj/Server_driver.o obj/Controller.o obj
 
 .PHONY: all
 all: obj client server controller metadata_Server
+
+.PHONY: debug
+debug: CXXFLAGS += -g -O0 -D_GLIBCXX_DEBUG # debug flags
+debug: all
 
 LEGOStore: $(obj) 
 	$(CXX) -o $@ $^ $(LDFLAGS)
@@ -65,6 +69,7 @@ clean:
 cleandb:
 	rm -rf db*.temp
 	rm -rf server*_output.txt
+	rm -rf metadata_output.txt
 	rm -rf client*_output.txt
 	rm -rf cont_output_*.txt
 	rm -rf logfile_*.txt
