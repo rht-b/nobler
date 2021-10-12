@@ -29,7 +29,8 @@
 
 class CAS_Server{
 public:
-    CAS_Server(const std::shared_ptr<Cache>& cache_p, const std::shared_ptr<Persistent>& persistent_p, const std::shared_ptr<std::mutex>& mu_p);
+    CAS_Server(const std::shared_ptr<Cache>& cache_p, const std::shared_ptr<Persistent>& persistent_p,
+               const std::shared_ptr<std::vector<std::unique_ptr<std::mutex>>>& mu_p_vec_p);
     CAS_Server(const CAS_Server& orig) = delete;
     virtual ~CAS_Server();
 
@@ -38,15 +39,15 @@ public:
     std::string put_fin(const std::string& key, uint32_t conf_id, const std::string& timestamp);
     std::string get(const std::string& key, uint32_t conf_id, const std::string& timestamp);
 
-    int init_key(const std::string& key, const uint32_t conf_id);
+    strVec init_key(const std::string& key, const uint32_t conf_id);
 
 private:
-    strVec get_data(const std::string& key);
-    int put_data(const std::string& key, const strVec& value);
-
     std::shared_ptr<Cache> cache_p;
     std::shared_ptr<Persistent> persistent_p;
-    std::shared_ptr<std::mutex> mu_p;
+    std::shared_ptr<std::vector<std::unique_ptr<std::mutex>>> mu_p_vec_p;
+
+    strVec get_data(const std::string& key);
+    int put_data(const std::string& key, const strVec& value);
 };
 
 #endif /* CAS_Server_H */

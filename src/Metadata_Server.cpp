@@ -66,9 +66,9 @@ inline std::string construct_key_metadata(const std::string& key, const std::str
 inline std::string construct_key_metadata(const std::string& key, const uint32_t conf_id){
     return construct_key_metadata(key, to_string(conf_id));
 }
-inline std::string construct_confid_timestamp(const std::string& confid, const std::string& timestamp){
-    return confid + "!" + timestamp;
-}
+// inline std::string construct_confid_timestamp(const std::string& confid, const std::string& timestamp){
+//     return confid + "!" + timestamp;
+// }
 
 string ask(const string& key, const string& confid){ // respond with (requested_confid!new_confid!timestamp, p)
     DPRINTF(DEBUG_METADATA_SERVER, "key: %s, confid: %s\n", key.c_str(), confid.c_str());
@@ -229,12 +229,6 @@ void message_handler(int connection, int portid, const std::string& recvd){
 
 void server_connection(int connection, int portid){
 
-//    int n = 1;
-//    int result = setsockopt(connection, SOL_SOCKET, SO_NOSIGPIPE, &n, sizeof(n));
-//    if(result < 0){
-//        assert(false);
-//    }
-
     int yes = 1;
     int result = setsockopt(connection, IPPROTO_TCP, TCP_NODELAY, (char*) &yes, sizeof(int));
     if(result < 0){
@@ -245,14 +239,12 @@ void server_connection(int connection, int portid){
         std::string recvd;
         int result = DataTransfer::recvMsg(connection, recvd);
         if(result != 1){
-//            DataTransfer::sendMsg(connection, DataTransfer::serializeMDS("ERROR", "Error in receiving"));
             close(connection);
             std::cout << portid << endl;
             DPRINTF(DEBUG_METADATA_SERVER, "one connection closed.\n");
             return;
         }
         if(is_warmup_message(recvd)){
-//            DPRINTF(DEBUG_METADATA_SERVER, "warmup message received\n");
             std::string temp = std::string(WARM_UP_MNEMONIC) + get_random_string();
             result = DataTransfer::sendMsg(connection, temp);
             if(result != 1){

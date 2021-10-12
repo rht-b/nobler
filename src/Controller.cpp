@@ -93,38 +93,23 @@ int Controller::read_input_workload(const string& file){
         element["timestamp"].get_to(grpcon.timestamp);
         element["id"].get_to(grpcon.id);
 
-//        vector<uint32_t> grp_ids;
-//        element["grp_id"].get_to(grp_ids);
-
-//        int counter = 0;
         for(auto& it: element["grp_workload"]){
             grpcon.groups.emplace_back();
             auto& grp = grpcon.groups.back();
 
             it["id"].get_to(grp.id);
 
-//            assert(counter < grp_ids.size());
-//            grp.id = grp_ids[counter++]; // ID will be set from the output of the optimizer Todo: is it OK?
             it["availability_target"].get_to(grp.availability_target);
             it["client_dist"].get_to(grp.client_dist);
             it["object_size"].get_to(grp.object_size);
-//            it["metadata_size"].get_to(gwkl->metadata_size);
             it["num_objects"].get_to(grp.num_objects);
             it["arrival_rate"].get_to(grp.arrival_rate);
             it["read_ratio"].get_to(grp.read_ratio);
-//            it["write_ratio"].get_to(gwkl->write_ratio);
-//            it["SLO_read"].get_to(gwkl->slo_read);
-//            it["SLO_write"].get_to(gwkl->slo_write);
             uint16_t dur_temp;
             it["duration"].get_to(dur_temp);
             grp.duration = seconds(dur_temp);
-//            it["time_to_decode"].get_to(gwkl->time_to_decode);
             it["keys"].get_to(grp.keys);
-//            (wkl->grp).push_back(gwkl);
         }
-//        assert(wkl->grp_id.size() == wkl->grp.size());
-//        assert(wkl->id > 0);
-//        input.push_back(wkl);
     }
     cfg.close();
     return 0;
@@ -350,7 +335,7 @@ int Controller::run_client(uint32_t datacenter_id, uint32_t conf_id, uint32_t gr
 #ifdef LOCAL_TEST
     vector<string> args;
     string output;
-    string command = "/Users/gauravkc/Documents/Nobler/LEGOstore/Client";
+    string command = "/home/ubuntu/nobler/Client";
 
     args.push_back(command);
     args.push_back(to_string(datacenter_id));
@@ -550,15 +535,41 @@ static inline bool compare_placement(const Placement& old, const Placement& curr
     return true;
 }
 
-int Controller::run_all_clients(){ //Todo: run other clients as well.
-    for(uint i = 0; i < properties.group_configs[0].groups.size(); i++){
+// int Controller::run_all_clients(){ //Todo: run other clients as well.
+//     for(uint i = 0; i < properties.group_configs[0].groups.size(); i++){
+//         for(uint j = 0; j < properties.datacenters.size(); j++){
+// //            DPRINTF(DEBUG_RECONFIG_CONTROL, "aaaa %s\n", master.prp.datacenters[j]->metadata_server_ip.c_str());
+//             if(properties.group_configs[0].groups[i].client_dist[j] != 0){
+//                 clients_thread.emplace_back(&Controller::run_client, this, properties.datacenters[j]->id, 1,
+//                                             properties.group_configs[0].groups[i].id);
+//             }
+//         }
+//     }
+//     return S_OK;
+// }
+
+int Controller::run_clients_for(int group_config_i){ //Todo: run other clients as well.
+    for(uint i = 0; i < properties.group_configs[group_config_i].groups.size(); i++){
         for(uint j = 0; j < properties.datacenters.size(); j++){
 //            DPRINTF(DEBUG_RECONFIG_CONTROL, "aaaa %s\n", master.prp.datacenters[j]->metadata_server_ip.c_str());
-            if(properties.group_configs[0].groups[i].client_dist[j] != 0){
-                clients_thread.emplace_back(&Controller::run_client, this, properties.datacenters[j]->id, 1,
-                                            properties.group_configs[0].groups[i].id);
+            if(properties.group_configs[group_config_i].groups[i].client_dist[j] != 0){
+                clients_thread.emplace_back(&Controller::run_client, this, properties.datacenters[j]->id, properties.group_configs[group_config_i].id,
+                                            properties.group_configs[group_config_i].groups[i].id);
             }
         }
+    }
+    return S_OK;
+}
+
+int Controller::run_all_clients(){ //Todo: run other clients as well.
+    auto startPoint = time_point_cast<milliseconds>(system_clock::now());
+    time_point <system_clock, milliseconds> timePoint;
+    for(uint i = 0; i < properties.group_configs.size(); i++){
+        auto& gc = properties.group_configs[i];
+        timePoint = startPoint + milliseconds{gc.timestamp * 1000};
+        this_thread::sleep_until(timePoint);
+        DPRINTF(DEBUG_CAS_Client, "clients in group_configs %d started.\n", i);
+        this->run_clients_for(i);
     }
     return S_OK;
 }
@@ -674,19 +685,21 @@ int main(){
     Controller master(2, 10000, 10000, "./config/auto_test/datacenters_access_info.json",
                       "./config/auto_test/input_workload.json", "./config/auto_test/optimizer_output.json");
 #endif
-    master.run_all_clients();
+    std::future<int> client_executer_fut = std::async(&Controller::run_all_clients, &master);
+    // master.run_all_clients();
     DPRINTF(DEBUG_RECONFIG_CONTROL, "controller created\n");
     
-//#ifndef LOCAL_TEST
+#ifndef LOCAL_TEST
     auto warm_up_tp = time_point_cast<milliseconds>(system_clock::now());;
     warm_up_tp += seconds(WARM_UP_DELAY);
     master.warm_up();
     std::this_thread::sleep_until(warm_up_tp);
-//#endif
+#endif
 
     DPRINTF(DEBUG_RECONFIG_CONTROL, "run_reconfigurer\n");
     master.run_reconfigurer();
 
+    client_executer_fut.get();
     master.wait_for_clients();
 
     DPRINTF(DEBUG_RECONFIG_CONTROL, "Connect::close_all()\n");

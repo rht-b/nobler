@@ -37,14 +37,15 @@ public:
 private:
     Liberasure liberasure;
 
-    int send_reconfig_query(const Group& old_config, uint32_t old_conf_id, const std::string& key, unique_ptr<Timestamp>& ts,
-            std::string& ret_v);
+    int send_reconfig_query(const Group& old_config, uint32_t old_conf_id, const Group& new_config, uint32_t new_conf_id, 
+                        const std::string& key, unique_ptr<Timestamp>& ts, std::string& ret_v);
+
     int send_reconfig_finalize(const Group& old_config, uint32_t old_conf_id, const std::string& key, unique_ptr<Timestamp>& ts,
                                std::string& ret_v);
-    int send_reconfig_write(const Group& new_config, uint32_t new_conf_id, const std::string& key, unique_ptr<Timestamp>& ret_ts,
+    int send_reconfig_commit(const Group& new_config, uint32_t new_conf_id, const std::string& key, unique_ptr<Timestamp>& ret_ts,
                             const std::string& ret_v);
 
-    int send_reconfig_finish(const Group& old_config, uint32_t old_conf_id, uint32_t new_conf_id, const std::string& key,
+    int send_finish_reconfig(const Group& old_config, uint32_t old_conf_id, const Group& new_config, uint32_t new_conf_id, const std::string& key,
                              unique_ptr<Timestamp>& ts);
 
     int reconfig_one_key(const string& key, const Group& old_config, uint32_t old_conf_id, const Group& new_config, uint32_t new_conf_id);

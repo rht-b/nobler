@@ -13,3 +13,5 @@ Metadata_Server
 logs/*
 knossos
 .idea
+.vscode
+tester/Knossos_testing/converted_logs/*.edn

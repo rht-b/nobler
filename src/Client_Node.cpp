@@ -54,12 +54,7 @@ int Client_Node::update_placement(const std::string& key, const uint32_t conf_id
     std::string sec_configs;
     Placement p;
 
-    if(this->cas != nullptr){
-        ret = ask_metadata(this->cas->get_metadata_server_ip(), this->cas->get_metadata_server_port(), key,
-                           conf_id, requested_conf_id, new_conf_id, timestamp, p, this->cas->get_retry_attempts(),
-                           this->cas->get_metadata_server_timeout(), sec_configs);
-    }
-    else if(this->abd != nullptr){
+    if(this->abd != nullptr){
         ret = ask_metadata(this->abd->get_metadata_server_ip(), this->abd->get_metadata_server_port(), key,
                            conf_id, requested_conf_id, new_conf_id, timestamp, p, this->abd->get_retry_attempts(),
                            this->abd->get_metadata_server_timeout(), sec_configs);
@@ -87,23 +82,10 @@ int Client_Node::update_placement(const std::string& key, const uint32_t conf_id
     this->secondary_configs[key] = vec; 
 
     keys_info[key] = std::pair<uint32_t, Placement>(requested_conf_id, p);
-//    if(p->protocol == CAS_PROTOCOL_NAME){
-//        if(this->desc != -1){
-//            destroy_liberasure_instance(((this->desc)));
-//        }
-//        this->desc = create_liberasure_instance(p);
-//        DPRINTF(DEBUG_CAS_Client, "desc is %d\n", desc);
-//        fflush(stdout);
-//    }
     ret = 0;
 
     assert(p.m != 0);
 
-//    if(p != nullptr) {
-//        delete p;
-//        p = nullptr;
-//    }
-    
     DPRINTF(DEBUG_CAS_Client, "finished\n");
     return ret;
 }

@@ -20,7 +20,7 @@ using std::mutex;
 
 /*
  * KEY = key!ABD_PROTOCOL_NAME!conf_id
- * VALUE = value, ABD_PROTOCOL_NAME, timestamp, reconfig_timestamp, new_conf_id, "FIN"
+ * VALUE = value, timestamp, reconfig_in_progress, reconfig_completed, new_conf_id, new_conf_placement
  * We save KEY->VALUE in the storages
  *
  */
@@ -43,7 +43,8 @@ int ABD_Server::put_data(const std::string& key, const strVec& value){
 }
 
 ABD_Server::ABD_Server(const std::shared_ptr<Cache>& cache_p, const std::shared_ptr<Persistent>& persistent_p,
-                       const std::shared_ptr<std::mutex>& mu_p) : cache_p(cache_p), persistent_p(persistent_p), mu_p(mu_p){
+                       const std::shared_ptr<std::vector<std::unique_ptr<std::mutex>>>& mu_p_vec_p) : cache_p(cache_p),
+                       persistent_p(persistent_p), mu_p_vec_p(mu_p_vec_p){
 }
 
 ABD_Server::~ABD_Server(){
@@ -51,103 +52,163 @@ ABD_Server::~ABD_Server(){
 
 int ABD_Server::init_key(const std::string& key, const uint32_t conf_id){
     
-    DPRINTF(DEBUG_ABD_Server, "started.\n");
+    DPRINTF(DEBUG_ABD_Server, "init_key started.\n");
     
     int ret = 0;
-    string timestamp = "0-0";
     string con_key = construct_key(key, ABD_PROTOCOL_NAME, conf_id);
     
-    vector <string> value{"init", ABD_PROTOCOL_NAME, timestamp, "", "", "FIN"};
+    vector <string> value{"init", "0-0", "f", "f", "", ""};
     put_data(con_key, value);
     
     return ret;
 }
 
-std::string ABD_Server::get_timestamp(const std::string& key, uint32_t conf_id, const std::string& extra_configs){
+std::string ABD_Server::get_timestamp(const std::string& key, uint32_t conf_id){
 
-    DPRINTF(DEBUG_ABD_Server, "started.\n");
-    lock_guard<mutex> lock(*mu_p);
+    lock_guard<mutex> lock(*(mu_p_vec_p->at(stoui(key))));
+
     string con_key = construct_key(key, ABD_PROTOCOL_NAME, conf_id); // Construct the unique id for the key
-    
     DPRINTF(DEBUG_ABD_Server, "get_timestamp started and the key is %s\n", con_key.c_str());
 
     strVec data = get_data(con_key);
     if(data.empty()){
         DPRINTF(DEBUG_ABD_Server, "WARN: Key %s with confid %d was not found! Initializing...\n", key.c_str(), conf_id);
         init_key(key, conf_id);
-        return DataTransfer::serialize({"OK", "0-0"});
+        return DataTransfer::serialize({"OK", "0-0", "", ""});
     }
 
-    if(data[3] == ""){
-        return DataTransfer::serialize({"OK", data[2], extra_configs});
+    if(data[3] == "t"){ // reconfig completed
+        return DataTransfer::serialize({"OPFAIL", "", "", ""});
     }
-    else{ // Key reconfigured
-        return DataTransfer::serialize({"OK", data[2], extra_configs});
+    else if(data[2] == "t") { // reconfig in progress
+        return DataTransfer::serialize({"OK", data[1], data[4], data[5]});
+    } 
+    else { // no reconfig
+        return DataTransfer::serialize({"OK", data[1], "", ""});
     }
 }
 
-std::string ABD_Server::put(const std::string& key, uint32_t conf_id, const std::string& value, const std::string& timestamp,
-                            const std::string& extra_configs){
+std::string ABD_Server::put(const std::string& key, uint32_t conf_id, const std::string& value, const std::string& timestamp){
 
-    DPRINTF(DEBUG_ABD_Server, "started.\n");
-    lock_guard<mutex> lock(*mu_p);
+    lock_guard<mutex> lock(*(mu_p_vec_p->at(stoui(key))));
 
     string con_key = construct_key(key, ABD_PROTOCOL_NAME, conf_id);
-    DPRINTF(DEBUG_ABD_Server, "con_key is %s\n", con_key.c_str());
+    DPRINTF(DEBUG_ABD_Server, "put started and the key is %s\n", con_key.c_str());
 
     strVec data = get_data(con_key);
     if(data.empty()){
         DPRINTF(DEBUG_ABD_Server, "put new con_key which is %s\n", con_key.c_str());
-        vector <string> val{value, ABD_PROTOCOL_NAME, timestamp, "", "", "FIN"};
+        vector <string> val{value, timestamp, "f", "f", "", ""};
         put_data(con_key, val);
-        return DataTransfer::serialize({"OK"});
+        return DataTransfer::serialize({"OK", "", ""});
     }
 
-    if(data[3] == ""){
-        if(Timestamp(timestamp) > Timestamp(data[2])){
-            data[0] = value;
-            data[2] = timestamp;
-            put_data(con_key, data);
-        }
-        return DataTransfer::serialize({"OK", extra_configs});
+    if(Timestamp(timestamp) > Timestamp(data[1])){
+        data[0] = value;
+        data[1] = timestamp;
+        put_data(con_key, data);
     }
-    else{ // Key reconfigured
-        /*
-        if(!(Timestamp(timestamp) > Timestamp(data[3]))){
-            if(Timestamp(timestamp) > Timestamp(data[2])){
-                data[0] = value;
-                data[2] = timestamp;
-                put_data(con_key, data);
-            }
-        */
-        return DataTransfer::serialize({"OK", extra_configs});
-        //}
-        //else{
-        //    return DataTransfer::serialize({"operation_fail", data[4]});
-        //}
+
+    if(data[2] == "t" || data[3] == "t"){ // Key reconfigured or in progress
+        return DataTransfer::serialize({"OK", data[4], data[5]});
+    }
+    else{ 
+        return DataTransfer::serialize({"OK", "", ""});
     }
 }
 
+std::string ABD_Server::get(const std::string& key, uint32_t conf_id){
 
-std::string ABD_Server::get(const std::string& key, uint32_t conf_id, const std::string& extra_configs){
-
-    DPRINTF(DEBUG_ABD_Server, "started.\n");
-    lock_guard<mutex> lock(*mu_p);
-    string con_key = construct_key(key, ABD_PROTOCOL_NAME, conf_id); // Construct the unique id for the key
+    lock_guard<mutex> lock(*(mu_p_vec_p->at(stoui(key))));
     
+    string con_key = construct_key(key, ABD_PROTOCOL_NAME, conf_id); // Construct the unique id for the key
     DPRINTF(DEBUG_ABD_Server, "get started and the key is %s\n", con_key.c_str());
 
     strVec data = get_data(con_key);
     if(data.empty()){
         DPRINTF(DEBUG_ABD_Server, "WARN: Key %s with confid %d was not found! Initializing...\n", key.c_str(), conf_id);
         init_key(key, conf_id);
-        return DataTransfer::serialize({"OK", "0-0", "init"});
+        return DataTransfer::serialize({"OK", "0-0", "init", "", ""});
     }
 
-    if(data[3] == ""){
-        return DataTransfer::serialize({"OK", data[2], data[0], extra_configs});
+
+    if(data[3] == "t"){ // reconfig completed
+        return DataTransfer::serialize({"OPFAIL", "", "", "", ""});
     }
-    else{ // Key reconfigured
-        return DataTransfer::serialize({"OK", data[2], data[0], extra_configs});
+    else if(data[2] == "t") { // reconfig in progress
+        return DataTransfer::serialize({"OK", data[1], data[0], data[4], data[5]});
     }
+    else{ 
+        return DataTransfer::serialize({"OK", data[1], data[0], "", ""});
+    }
+}
+
+std::string ABD_Server::reconfig_query(const std::string& key, uint32_t conf_id, uint32_t new_conf_id, const std::string& new_conf_placement){
+
+    lock_guard<mutex> lock(*(mu_p_vec_p->at(stoui(key))));
+    
+    string con_key = construct_key(key, ABD_PROTOCOL_NAME, conf_id); // Construct the unique id for the key
+    DPRINTF(DEBUG_ABD_Server, "reconfig_query started and the key is %s\n", con_key.c_str());
+
+    strVec data = get_data(con_key);
+    if(data.empty()){
+        DPRINTF(DEBUG_ABD_Server, "WARN: Key %s with confid %d was not found! Initializing...\n", key.c_str(), conf_id);
+        init_key(key, conf_id);
+        data = get_data(con_key);
+    }
+
+    data[2] = "t";
+    data[4] = new_conf_id;
+    data[5] = new_conf_placement;
+
+    put_data(con_key, data);
+
+    return DataTransfer::serialize({"OK", data[1], data[0]});
+}
+
+std::string ABD_Server::reconfig_commit(const std::string& key, const std::string& timestamp, const std::string& value, uint32_t new_conf_id){
+
+    lock_guard<mutex> lock(*(mu_p_vec_p->at(stoui(key))));
+    
+    string con_key = construct_key(key, ABD_PROTOCOL_NAME, new_conf_id); // Construct the unique id for the key
+    DPRINTF(DEBUG_ABD_Server, "reconfig_commit started and the key is %s\n", con_key.c_str());
+
+    strVec data = get_data(con_key);
+    if(data.empty()){
+        DPRINTF(DEBUG_ABD_Server, "reconfig_commit new con_key which is %s\n", con_key.c_str());
+        vector <string> val{value, timestamp, "f", "f", "", ""};
+        put_data(con_key, val);
+        return DataTransfer::serialize({"OK"});
+    }
+
+    if(Timestamp(timestamp) > Timestamp(data[1])){
+        data[0] = value;
+        data[1] = timestamp;
+        put_data(con_key, data);
+    }
+
+    return DataTransfer::serialize({"OK"});
+}
+
+std::string ABD_Server::finish_reconfig(const std::string &key, uint32_t conf_id){
+
+    lock_guard<mutex> lock(*(mu_p_vec_p->at(stoui(key))));
+    
+    string con_key = construct_key(key, ABD_PROTOCOL_NAME, conf_id); // Construct the unique id for the key
+    DPRINTF(DEBUG_ABD_Server, "finish_reconfig started and the key is %s\n", con_key.c_str());
+
+    strVec data = get_data(con_key);
+    if(data.empty()){
+        DPRINTF(DEBUG_ABD_Server, "reconfig_commit new con_key which is %s\n", con_key.c_str());
+        vector <string> val{"init", "0-0", "t", "t", "", ""};
+        put_data(con_key, val);
+        return DataTransfer::serialize({"OK"});
+    }
+
+    data[3] = "t";
+    data[4] = ""; // to reduce size in cache, since we don't need to store nextConfig id
+    data[5] = ""; // to reduce size in cache, since we don't need to store nextConfig placement info
+    put_data(con_key, data);
+
+    return DataTransfer::serialize({"OK"});
 }

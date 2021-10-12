@@ -49,7 +49,7 @@ using namespace std::chrono;
 #define CLIENT_PORT 10001
 #define MAX_LINGER_BEFORE_SOCK_CLOSE 50
 
-//#define No_GET_OPTIMIZED
+#define No_GET_OPTIMIZED
 #define LOCAL_TEST
 
 #ifdef LOCAL_TEST
@@ -61,6 +61,8 @@ using namespace std::chrono;
 //#define METADATA_SERVER_PORT    "11001"
 //#define DEFAULT_RET_ATTEMPTS    2
 //#define DEFAULT_METASER_TO      10000
+
+#define MAX_KEY_NUMBER 10000
 
 #define CAS_PROTOCOL_NAME "CAS"
 #define ABD_PROTOCOL_NAME "ABD"

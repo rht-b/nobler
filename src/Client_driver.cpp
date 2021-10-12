@@ -337,18 +337,15 @@ int run_session(uint req_idx){
     timePoint2 += milliseconds{get_random_number_uniform(0, 2000)};
     std::this_thread::sleep_until(timePoint2);
 
-    timePoint3 += milliseconds{WARM_UP_DELAY * 1000};
+    // timePoint3 += milliseconds{WARM_UP_DELAY * 1000};
 
     // logging
     File_logger file_logger(clt.get_id());
 
     // WARM UP THE SOCKETS
 //    warm_up(clt, file_logger);
-    warm_up();
-//    warm_up();
-
-
-    std::this_thread::sleep_until(timePoint3);
+    // warm_up();
+    // std::this_thread::sleep_until(timePoint3);
     
 //    DPRINTF(DEBUG_CAS_Client, "datacenter port: %u\n", datacenters[datacenter_id]->metadata_server_port);
     
