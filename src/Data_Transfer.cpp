@@ -460,32 +460,28 @@ int DataTransfer::recvMsg_async(const int sock, std::promise <std::string>&& dat
 //}
 
 std::string DataTransfer::serializeMDS(const std::string& status, const std::string& msg, const std::string& key,
-                                       const uint32_t& curr_conf_id, const uint32_t& new_conf_id, const std::string& timestamp,
-                                       const string& secondary_configs, const Placement& placement){
+                                    const std::string& ready_conf_id, const Placement& ready_placement, 
+                                    const std::string& toret_conf_id, const Placement& toret_placement){
     packet::MetaDataServer mds;
     mds.set_status(status);
     mds.set_msg(msg);
     mds.set_key(key);
-    mds.set_curr_conf_id(curr_conf_id);
-    mds.set_new_conf_id(new_conf_id);
-    mds.set_timestamp(timestamp);
-    mds.set_secondary_configs(secondary_configs);
+    mds.set_ready_conf_id(ready_conf_id);
+    mds.set_toret_conf_id(toret_conf_id);
     
-//    if(placement != nullptr){
-    packet::Placement* mds_placement = mds.mutable_placement();
-//    const Placement& pp = *placement;
+    packet::Placement* mds_ready_placement = mds.mutable_ready_placement();
 
-    mds_placement->set_protocol(placement.protocol);
-    mds_placement->set_m(placement.m);
-    mds_placement->set_k(placement.k);
-    mds_placement->set_f(placement.f);
+    mds_ready_placement->set_protocol(ready_placement.protocol);
+    mds_ready_placement->set_m(ready_placement.m);
+    mds_ready_placement->set_k(ready_placement.k);
+    mds_ready_placement->set_f(ready_placement.f);
 
-    for(auto s: placement.servers){
-        mds_placement->add_servers(s);
+    for(auto s: ready_placement.servers){
+        mds_ready_placement->add_servers(s);
     }
 
-    for(auto& quo: placement.quorums){
-        packet::Quorums* quorums = mds_placement->add_quorums();
+    for(auto& quo: ready_placement.quorums){
+        packet::Quorums* quorums = mds_ready_placement->add_quorums();
         for(auto q : quo.Q1){
             quorums->add_q1(q);
         }
@@ -493,25 +489,32 @@ std::string DataTransfer::serializeMDS(const std::string& status, const std::str
         for(auto q : quo.Q2){
             quorums->add_q2(q);
         }
+    }
 
-        for(auto q : quo.Q3){
-            quorums->add_q3(q);
+    packet::Placement* mds_toret_placement = mds.mutable_toret_placement();
+
+    if(toret_conf_id != "") {
+        mds_toret_placement->set_protocol(toret_placement.protocol);
+        mds_toret_placement->set_m(toret_placement.m);
+        mds_toret_placement->set_k(toret_placement.k);
+        mds_toret_placement->set_f(toret_placement.f);
+
+        for(auto s: toret_placement.servers){
+            mds_toret_placement->add_servers(s);
         }
 
-        for(auto q : quo.Q4){
-            quorums->add_q4(q);
+        for(auto& quo: toret_placement.quorums){
+            packet::Quorums* quorums = mds_toret_placement->add_quorums();
+            for(auto q : quo.Q1){
+                quorums->add_q1(q);
+            }
+
+            for(auto q : quo.Q2){
+                quorums->add_q2(q);
+            }
         }
     }
-//    }
-//    else{
-//        packet::Placement* placement_p = mds.mutable_placement_p();
-//
-//        placement_p->set_protocol("");
-//        placement_p->set_m(0);
-//        placement_p->set_k(0);
-//        placement_p->set_f(0);
-//    }
-    
+
     std::string str_out;
     if(!mds.SerializeToString(&str_out)){
         throw std::logic_error("Failed to serialize the message ! ");
@@ -520,16 +523,27 @@ std::string DataTransfer::serializeMDS(const std::string& status, const std::str
 }
 
 std::string DataTransfer::serializeMDS(const std::string& status, const std::string& msg, const std::string& key,
-                                       const uint32_t& curr_conf_id, const uint32_t& new_conf_id,
-                                       const string& timestamp, const string& secondary_configs){
-    Placement p;
-    return DataTransfer::serializeMDS(status, msg, key, curr_conf_id, new_conf_id, timestamp, secondary_configs, p);
+                                    const std::string& ready_conf_id, const Placement& ready_placement){
+    
+    std::string toret_conf_id = "";
+    Placement toret_placement;
+    return DataTransfer::serializeMDS(status, msg, key, ready_conf_id, ready_placement, toret_conf_id, toret_placement);
+}
+
+std::string DataTransfer::serializeMDS(const std::string& status, const std::string& msg){
+    
+    std::string key = "";
+    std::string ready_conf_id = "";
+    Placement ready_placement;
+    std::string toret_conf_id = "";
+    Placement toret_placement;
+    return DataTransfer::serializeMDS(status, msg, key, ready_conf_id, ready_placement, toret_conf_id, toret_placement);
 }
 
 Placement DataTransfer::deserializeMDS(const std::string& data, std::string& status, std::string& msg, std::string& key,
-                                        uint32_t& curr_conf_id, uint32_t& new_conf_id, std::string& timestamp,
-                                        string& secondary_configs){
-    Placement p;
+                                    std::string& ready_conf_id, std::string& toret_conf_id, Placement& toret_placement){
+    Placement ready_p;
+
     packet::MetaDataServer mds;        // Nomenclature: add 'g' in front of gRPC variables
     if(!mds.ParseFromString(data)){
         throw std::logic_error("Failed to Parse the input received ! ");
@@ -538,51 +552,51 @@ Placement DataTransfer::deserializeMDS(const std::string& data, std::string& sta
     status = mds.status();
     msg = mds.msg();
     key = mds.key();
-    curr_conf_id = mds.curr_conf_id();
-    new_conf_id = mds.new_conf_id();
-    timestamp = mds.timestamp();
-    secondary_configs = mds.secondary_configs();
-    
-//    if(!(status == "ERROR" || status == "WARN" || (status == "OK" && msg == "key updated"))){
-//    p = new Placement;
+    ready_conf_id = mds.ready_conf_id();
+    toret_conf_id = mds.toret_conf_id();
 
-    const packet::Placement& gp = mds.placement();
 
-    p.protocol = gp.protocol();
-    p.m = gp.m();
-    p.k = gp.k();
-    p.f = gp.f();
+    const packet::Placement& gp = mds.ready_placement();
+
+    ready_p.protocol = gp.protocol();
+    ready_p.m = gp.m();
+    ready_p.k = gp.k();
+    ready_p.f = gp.f();
 
     for(auto s: gp.servers()){
-        p.servers.push_back(s);
+        ready_p.servers.push_back(s);
     }
 
     for(auto& quo: gp.quorums()){
-        p.quorums.emplace_back();
+        ready_p.quorums.emplace_back();
         for(auto q: quo.q1()){
-            p.quorums.back().Q1.push_back(q);
+            ready_p.quorums.back().Q1.push_back(q);
         }
         for(auto q: quo.q2()){
-            p.quorums.back().Q2.push_back(q);
-        }
-        for(auto q: quo.q3()){
-            p.quorums.back().Q3.push_back(q);
-        }
-        for(auto q: quo.q4()){
-            p.quorums.back().Q4.push_back(q);
+            ready_p.quorums.back().Q2.push_back(q);
         }
     }
 
-//    }
-    
-    return p;
-}
+    const packet::Placement& toret_gp = mds.toret_placement();
 
-Placement DataTransfer::deserializeMDS(const std::string& data, std::string& status, std::string& msg){
-    std::string key;
-    uint32_t curr_conf_id;
-    uint32_t new_conf_id;
-    std::string timestamp;
-    std::string secondary_configs;
-    return DataTransfer::deserializeMDS(data, status, msg, key, curr_conf_id, new_conf_id, timestamp, secondary_configs);
+    toret_placement.protocol = toret_gp.protocol();
+    toret_placement.m = toret_gp.m();
+    toret_placement.k = toret_gp.k();
+    toret_placement.f = toret_gp.f();
+
+    for(auto s: toret_gp.servers()){
+        toret_placement.servers.push_back(s);
+    }
+
+    for(auto& quo: toret_gp.quorums()){
+        toret_placement.quorums.emplace_back();
+        for(auto q: quo.q1()){
+            toret_placement.quorums.back().Q1.push_back(q);
+        }
+        for(auto q: quo.q2()){
+            toret_placement.quorums.back().Q2.push_back(q);
+        }
+    }
+    
+    return ready_p;
 }

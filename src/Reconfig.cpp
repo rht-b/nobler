@@ -338,8 +338,6 @@ Reconfig::~Reconfig(){
 
 int Reconfig::reconfig_one_key(const string& key, const Group& old_config, uint32_t old_conf_id, const Group& new_config, uint32_t new_conf_id){
     DPRINTF(DEBUG_RECONFIG_CONTROL, "started\n");
-    std::string op_add = "add";
-    std::string op_remove = "remove";
 
     EASY_LOG_INIT_M(string("from ") + to_string(old_conf_id) + " to " + to_string(new_conf_id) + " for key " + key);
 
@@ -353,48 +351,17 @@ int Reconfig::reconfig_one_key(const string& key, const Group& old_config, uint3
     assert(Reconfig::send_reconfig_commit(new_config, new_conf_id, key, ret_ts, ret_v) == 0);
     EASY_LOG_M("send_reconfig_commit done");
 
-    assert(update_metadata_state(key, old_conf_id, op_add, ret_ts->get_string()) == 0);
-    EASY_LOG_M("update_metadata_state done");
-
-    assert(update_metadata_info(key, old_conf_id, new_conf_id, ret_ts->get_string(), new_config.placement) == 0);
+    std::string new_conf_id_str = to_string(new_conf_id);
+    std::string old_conf_id_str = to_string(old_conf_id);
+    assert(update_metadata_info(key, new_conf_id_str, new_config.placement, old_conf_id_str, old_config.placement) == 0);
     EASY_LOG_M("update_metadata_info done");
 
     assert(Reconfig::send_finish_reconfig(old_config, old_conf_id, new_config, new_conf_id, key, ret_ts) == 0);
     EASY_LOG_M("send_reconfig_finish done");
 
-    assert(update_metadata_state(key, old_conf_id, op_remove, ret_ts->get_string()) == 0);
-    EASY_LOG_M("update_metadata_state done");
-
-    return S_OK;
-}
-
-int Reconfig::update_metadata_state(const std::string& key, uint32_t old_confid_id, std::string& op, const std::string& timestamp){
-    DPRINTF(DEBUG_RECONFIG_CONTROL, "started\n");
-    for(uint k = 0; k < datacenters.size(); k++){
-        Connect c(datacenters[k]->metadata_server_ip, datacenters[k]->metadata_server_port);
-        if(!c.is_connected()){
-            DPRINTF(DEBUG_RECONFIG_CONTROL, "Warn: cannot connect to metadata server\n");
-            continue;
-        }
-        DataTransfer::sendMsg(*c, DataTransfer::serializeMDS("state", "", key, old_confid_id, 0, timestamp, op));
-//                                                             key + "!" + std::to_string(old_confid_id) + "!" + op + "!" + timestamp));
-        std::string recvd;
-        if(DataTransfer::recvMsg(*c, recvd) == 1){
-            fflush(stdout);
-            std::string status;
-            std::string msg;
-            DataTransfer::deserializeMDS(recvd, status, msg);
-            if(status != "OK"){
-                DPRINTF(DEBUG_RECONFIG_CONTROL, "%s\n", msg.c_str());
-                assert(false);
-            }
-            DPRINTF(DEBUG_RECONFIG_CONTROL, "metadata_server state updated\n");
-        }
-        else{
-            DPRINTF(DEBUG_RECONFIG_CONTROL, "Error in receiving msg from Metadata Server\n");
-            return -1;
-        }
-    }
+    Placement dummy_placement = Placement();
+    assert(update_metadata_info(key, new_conf_id_str, new_config.placement, "", dummy_placement) == 0);
+    EASY_LOG_M("update_metadata_info finished");
 
     return S_OK;
 }
@@ -418,28 +385,32 @@ int Reconfig::reconfig(const Group& old_config, uint32_t old_conf_id, const Grou
 }
 
 int Reconfig::update_one_metadata_server(const std::string& metadata_server_ip, uint32_t metadata_server_port, const std::string& key,
-                               uint32_t old_confid_id, uint32_t new_confid_id, const std::string& timestamp,
-                               const Placement& p){
+                                         const std::string& ready_confid_id, const Placement& ready_p, 
+                                         const std::string& toret_confid_id, const Placement& toret_p){
     Connect c(metadata_server_ip, metadata_server_port);
     if(!c.is_connected()){
         DPRINTF(DEBUG_RECONFIG_CONTROL, "Warn: cannot connect to metadata server\n");
         return -2;
     }
-    DataTransfer::sendMsg(*c, DataTransfer::serializeMDS("update", "", key, old_confid_id, new_confid_id, timestamp, "", p));
+
+    DataTransfer::sendMsg(*c, DataTransfer::serializeMDS("update", "", key, ready_confid_id, ready_p, toret_confid_id, toret_p));
 
     string recvd;
     if(DataTransfer::recvMsg(*c, recvd) == 1){
         string status;
         string msg;
-        DataTransfer::deserializeMDS(recvd, status, msg);
-        if(status != "OK" && status != "WARN"){
+        std::string key;
+        std::string ready_id;
+        std::string toret_id;
+        Placement toret_placement;
+        DataTransfer::deserializeMDS(recvd, status, msg, key, ready_id, toret_id, toret_placement);
+
+        if(status != "OK"){
             DPRINTF(DEBUG_RECONFIG_CONTROL, "%s\n", msg.c_str());
             assert(false);
         }
-        if(status == "WARN"){
-            DPRINTF(DEBUG_RECONFIG_CONTROL, "WARN: msg is %s\n", msg.c_str());
-        }
-        DPRINTF(DEBUG_RECONFIG_CONTROL, "metadata_server updated\n");
+        
+        DPRINTF(DEBUG_RECONFIG_CONTROL, "metadata_server updated %s\n", msg.c_str());
     }
     else{
         DPRINTF(DEBUG_RECONFIG_CONTROL, "Error in receiving msg from Metadata Server\n");
@@ -448,13 +419,13 @@ int Reconfig::update_one_metadata_server(const std::string& metadata_server_ip, 
     return S_OK;
 }
 
-int Reconfig::update_metadata_info(const string& key, uint32_t old_confid_id, uint32_t new_confid_id, const string& timestamp,
-                                   const Placement& p){
+int Reconfig::update_metadata_info(const string& key, const string& ready_confid_id, const Placement& ready_p,
+                                   const string& toret_confid_id, const Placement& toret_p){
     DPRINTF(DEBUG_RECONFIG_CONTROL, "started\n");
     vector<future<int>> rets;
     for(uint k = 0; k < datacenters.size(); k++){
         rets.emplace_back(async(launch::async, &Reconfig::update_one_metadata_server, this, datacenters[k]->metadata_server_ip,
-                                datacenters[k]->metadata_server_port, key, old_confid_id, new_confid_id, timestamp, p));
+                                datacenters[k]->metadata_server_port, key, ready_confid_id, ready_p, toret_confid_id, toret_p));
     }
 
     for(auto it = rets.begin(); it != rets.end(); it++){

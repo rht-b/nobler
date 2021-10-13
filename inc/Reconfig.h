@@ -27,12 +27,11 @@ public:
     
     int reconfig(const Group& old_config, uint32_t old_conf_id, const Group& new_config, uint32_t new_conf_id);
 
-    int update_metadata_info(const std::string& key, uint32_t old_confid_id, uint32_t new_confid_id, const std::string& timestamp,
-                             const Placement& p);
+    int update_metadata_info(const string& key, const string& ready_confid_id, const Placement& ready_p,
+                             const string& toret_confid_id, const Placement& toret_p);
 
     int put(const std::string& key, const std::string& value);
     int get(const std::string& key, std::string& value);
-    int update_metadata_state(const std::string& key, uint32_t old_confid_id, std::string& op, const std::string& timestamp);
 
 private:
     Liberasure liberasure;
@@ -51,8 +50,7 @@ private:
     int reconfig_one_key(const string& key, const Group& old_config, uint32_t old_conf_id, const Group& new_config, uint32_t new_conf_id);
 
     int update_one_metadata_server(const std::string& metadata_server_ip, uint32_t metadata_server_port, const std::string& key,
-                                   uint32_t old_confid_id, uint32_t new_confid_id, const std::string& timestamp,
-                                   const Placement& p);
+                                   const string& ready_confid_id, const Placement& ready_p, const string& toret_confid_id, const Placement& toret_p);
 };
 
 #endif /* RECONFIG_H */

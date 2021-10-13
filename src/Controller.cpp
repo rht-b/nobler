@@ -491,9 +491,12 @@ int Controller::init_metadata_server(){
     for(uint i = 0; i < gc.groups.size(); i++){
         for(uint j = 0; j < gc.groups[i].keys.size(); j++){
             string key = gc.groups[i].keys[j];
-            uint32_t conf_id = gc.id;
+            
+            std::string conf_id = to_string(gc.id);
+            Placement dummy_placement = Placement();
+
             rets.emplace_back(async(launch::async, &Reconfig::update_metadata_info, this->reconfigurer_p.get(), key,
-                                    conf_id, conf_id, "", gc.groups[i].placement));
+                                    conf_id, gc.groups[i].placement, "", dummy_placement));
         }
     }
 
