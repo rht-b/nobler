@@ -859,62 +859,62 @@ std::string construct_key(const std::string& key, const std::string& protocol, c
 }
 
 int ask_metadata(const std::string& metadata_server_ip, const std::string& metadata_server_port,
-        const std::string& key, const uint32_t conf_id, uint32_t& requested_conf_id, uint32_t& new_conf_id,
-        std::string& timestamp, Placement& p, uint32_t retry_attempts, uint32_t metadata_server_timeout, std::string& secondary_configs){
+                const std::string& key, std::string& ready_conf_id, Placement& ready_placement, 
+                std::string& toret_conf_id, Placement& toret_placement,
+                uint32_t retry_attempts, uint32_t metadata_server_timeout){
+
     DPRINTF(DEBUG_CLIENT_NODE, "started\n");
     int ret = 0;
-//     std::string status, msg;
+    std::string status, msg;
 
-//     DPRINTF(DEBUG_CLIENT_NODE, "metadata_server_ip port is %s %s\n", metadata_server_ip.c_str(), metadata_server_port.c_str());
-//     Connect c(metadata_server_ip, metadata_server_port);
-//     if(!c.is_connected()){
-//         DPRINTF(DEBUG_CLIENT_NODE, "connection error\n");
-//         return -1;
-//     }
+    DPRINTF(DEBUG_CLIENT_NODE, "metadata_server_ip port is %s %s\n", metadata_server_ip.c_str(), metadata_server_port.c_str());
+    Connect c(metadata_server_ip, metadata_server_port);
+    if(!c.is_connected()){
+        DPRINTF(DEBUG_CLIENT_NODE, "connection error\n");
+        return -1;
+    }
 
-//     std::string recvd;
-//     uint32_t RAs = retry_attempts;
-//     std::chrono::milliseconds span(metadata_server_timeout);
-//     bool flag = false;
-//     while(RAs--){
-//         std::promise<std::string> data_set;
-//         std::future<std::string> data_set_fut = data_set.get_future();
-//         DataTransfer::sendMsg(*c, DataTransfer::serializeMDS("ask", "", key, conf_id));
-//         std::future<int> fut = std::async(std::launch::async, DataTransfer::recvMsg_async, *c, std::move(data_set));
+    std::string recvd;
+    uint32_t RAs = retry_attempts;
+    std::chrono::milliseconds span(metadata_server_timeout);
+    bool flag = false;
 
-//         if(data_set_fut.valid()){
-// //            DPRINTF(DEBUG_CLIENT_NODE, "data_set_fut is valid\n");
-//             std::future_status aaa = data_set_fut.wait_for(span);
-//             if(aaa == std::future_status::ready){
-//                 int ret = fut.get();
-// //                DPRINTF(DEBUG_CLIENT_NODE, "Future ret value is %d\n", ret);
-//                 if(ret == 1){
-//                     flag = true;
-//                     recvd = data_set_fut.get();
-//                     break;
-//                 }
-//             }
-// //            DPRINTF(DEBUG_CLIENT_NODE, "aaaa is %d and to is %d\n", aaa, std::future_status::timeout);
-//         }
-//         else{
-//             DPRINTF(DEBUG_CLIENT_NODE, "data_set_fut is not valid\n");
-//         }
-//     }
+    while(RAs--){
+        std::promise<std::string> data_set;
+        std::future<std::string> data_set_fut = data_set.get_future();
+        DataTransfer::sendMsg(*c, DataTransfer::serializeMDS("ask", "", key));
+        std::future<int> fut = std::async(std::launch::async, DataTransfer::recvMsg_async, *c, std::move(data_set));
 
-//     if(flag){
-//         status.clear();
-//         msg.clear();
-//         std::string rec_key;
+        if(data_set_fut.valid()){
+            std::future_status aaa = data_set_fut.wait_for(span);
+            if(aaa == std::future_status::ready){
+                int ret = fut.get();
+                if(ret == 1){
+                    flag = true;
+                    recvd = data_set_fut.get();
+                    break;
+                }
+            }
+        }
+        else{
+            DPRINTF(DEBUG_CLIENT_NODE, "data_set_fut is not valid\n");
+        }
+    }
 
-//         p = DataTransfer::deserializeMDS(recvd, status, msg, rec_key, requested_conf_id, new_conf_id, timestamp, secondary_configs);
+    if(flag){
+        status.clear();
+        msg.clear();
 
-//         assert(key == rec_key);
-//         assert(status == "OK" || status == "WARN");
-//     }
-//     else{
-//         ret = -2;
-//         DPRINTF(DEBUG_CLIENT_NODE, "Metadata server timeout for request: %s\n", msg.c_str());
-//     }
+        std::string received_key;
+        ready_placement = DataTransfer::deserializeMDS(recvd, status, msg, received_key, ready_conf_id, toret_conf_id, toret_placement);
+
+        assert(key == received_key);
+        assert(status == "OK");
+    }
+    else{
+        ret = -2;
+        DPRINTF(DEBUG_CLIENT_NODE, "Metadata server timeout for request: %s\n", msg.c_str());
+    }
     
     return ret;
 }

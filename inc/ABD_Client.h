@@ -32,7 +32,7 @@ public:
 private:
     Client_Node* parent;
 
-    int get_timestamp(const std::string& key, std::unique_ptr<Timestamp>& timestamp_p);
+    int get_timestamp(const std::string& key, std::unique_ptr<Timestamp>& timestamp_p, std::map<std::string, std::pair<bool, Configuration>>& sconf);
 };
 
 #endif /* ABDCLIENT_H */

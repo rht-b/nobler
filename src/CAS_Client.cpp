@@ -236,7 +236,7 @@ int CAS_Client::get_timestamp(const string& key, unique_ptr<Timestamp>& timestam
     vector<Timestamp> tss;
     timestamp_p.reset();
 
-    const Placement& p = parent->get_placement(key);
+    const Placement& p = parent->get_placement(key).first.placement; // Not correct -- patch work
     int op_status = 0;    // 0: Success, -1: timeout, -2: operation_fail(reconfiguration)
     
     vector<strVec> ret;
@@ -276,7 +276,7 @@ int CAS_Client::get_timestamp(const string& key, unique_ptr<Timestamp>& timestam
         }
         else if((*it)[0] == "operation_fail"){
             DPRINTF(DEBUG_CAS_Client, "operation_fail received for key : %s\n", key.c_str());
-            parent->get_placement(key, true, (*it)[1]);
+            // parent->get_placement(key, true, (*it)[1]); // Not correct -- patch work
             op_status = -2; // reconfiguration happened on the key
             timestamp_p.reset();
             return S_RECFG;
@@ -327,7 +327,7 @@ int CAS_Client::put(const string& key, const string& value){
     uint64_t le_init = time_point_cast<chrono::milliseconds>(chrono::system_clock::now()).time_since_epoch().count();
     DPRINTF(DEBUG_CAS_Client, "latencies%d: %lu\n", le_counter++, time_point_cast<chrono::milliseconds>(chrono::system_clock::now()).time_since_epoch().count() - le_init);
     
-    const Placement& p = parent->get_placement(key);
+    const Placement& p = parent->get_placement(key).first.placement; // Not correct -- patch work
     EASY_LOG_M("placement received. trying to get timestamp and encoding data simultaneously...");
     int op_status = 0;    // 0: Success, -1: timeout, -2: operation_fail(reconfiguration)
 
@@ -401,7 +401,7 @@ int CAS_Client::put(const string& key, const string& value){
         }
         else if((*it)[0] == "operation_fail"){
             DPRINTF(DEBUG_CAS_Client, "operation_fail received for key : %s\n", key.c_str());
-            parent->get_placement(key, true, (*it)[1]);
+            // parent->get_placement(key, true, (*it)[1]); // Not correct -- patch work
 //            op_status = -2; // reconfiguration happened on the key
 //            return S_RECFG;
             return parent->put(key, value);
@@ -440,7 +440,7 @@ int CAS_Client::put(const string& key, const string& value){
         }
         else if((*it)[0] == "operation_fail"){
             DPRINTF(DEBUG_CAS_Client, "operation_fail received for key : %s\n", key.c_str());
-            parent->get_placement(key, true, (*it)[1]);
+            // parent->get_placement(key, true, (*it)[1]); // Not correct -- patch work
 //            op_status = -2; // reconfiguration happened on the key
 //            return S_RECFG;
             return parent->put(key, value);
@@ -479,7 +479,7 @@ int CAS_Client::get(const string& key, string& value){
     uint64_t le_init = time_point_cast<chrono::milliseconds>(chrono::system_clock::now()).time_since_epoch().count();
     DPRINTF(DEBUG_CAS_Client, "ts_latencies%d: %lu\n", le_counter++, time_point_cast<chrono::milliseconds>(chrono::system_clock::now()).time_since_epoch().count() - le_init);
 
-    const Placement& p = parent->get_placement(key);
+    const Placement& p = parent->get_placement(key).first.placement; // Not correct -- patch work
     EASY_LOG_M("placement received. trying to get timestamp...");
     int op_status = 0;    // 0: Success, -1: timeout, -2: operation_fail(reconfiguration)
 
@@ -542,7 +542,7 @@ int CAS_Client::get(const string& key, string& value){
         }
         else if((*it)[0] == "operation_fail"){
             DPRINTF(DEBUG_CAS_Client, "operation_fail received for key : %s\n", key.c_str());
-            parent->get_placement(key, true, (*it)[1]);
+            // parent->get_placement(key, true, (*it)[1]); // Not correct -- patch work
 //            op_status = -2; // reconfiguration happened on the key
 //            return S_RECFG;
             return parent->get(key, value);

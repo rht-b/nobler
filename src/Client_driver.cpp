@@ -213,76 +213,6 @@ int warm_up(){
     return S_OK;
 }
 
-//int warm_up(){
-//
-//    int result = S_OK;
-//
-//    for(uint i = 0; i < keys.size(); i++){ // PUTS
-//        for(int j = 0; j < NUMBER_OF_OPS_FOR_WARM_UP; j++){
-//
-//#ifdef DEBUGGING
-//
-//            if(j == NUMBER_OF_OPS_FOR_WARM_UP - 1) {
-//                auto timePoint2 = time_point_cast<milliseconds>(system_clock::now());
-//                timePoint2 += milliseconds{rand() % 1000};
-//                std::this_thread::sleep_until(timePoint2);
-//
-//                // Last write must be logged for testing linearizability purposes
-//                std::string val = get_random_string(8 * 1024);
-//                auto epoch = time_point_cast<std::chrono::microseconds>(
-//                        std::chrono::system_clock::now()).time_since_epoch().count();
-//                result = clt.put(keys[i], val);
-//                if (result != 0) {
-//                    assert(false);
-//                }
-//                auto epoch2 = time_point_cast<std::chrono::microseconds>(
-//                        std::chrono::system_clock::now()).time_since_epoch().count();
-//                file_logger(Op::put, keys[i], val, epoch, epoch2);
-//                continue;
-//            }
-//#endif
-//
-//            auto timePoint2 = time_point_cast<milliseconds>(system_clock::now());
-//            timePoint2 += milliseconds{rand() % 1000};
-//            std::this_thread::sleep_until(timePoint2);
-//            std::string val = get_random_string(8 * 1024);
-//            result = clt.put(keys[i], val);
-//            if(result != 0){
-////                DPRINTF(DEBUG_CAS_Client, "clt.put on key %s, result is %d\n", keys[key_idx].c_str(), result);
-//                assert(false);
-//            }
-//        }
-//    }
-//
-//
-//    for(uint i = 0; i < keys.size(); i++){ // GETS
-//        for(int j = 0; j < NUMBER_OF_OPS_FOR_WARM_UP; j++){
-//            auto timePoint2 = time_point_cast<milliseconds>(system_clock::now());
-//            timePoint2 += milliseconds{rand() % 1000};
-//            std::this_thread::sleep_until(timePoint2);
-//            std::string read_value;
-//            result = clt.get(keys[i], read_value);
-//            if(result != 0){
-////                DPRINTF(DEBUG_CAS_Client, "clt.get on key %s, result is %d\n", keys[key_idx].c_str(), result);
-//                assert(false);
-//            }
-//        }
-//    }
-//
-//    // Wait until all the warmup operations are finished
-////    auto timePoint2 = time_point_cast<milliseconds>(system_clock::now());
-////#ifdef DEBUGGING
-////    timePoint2 += milliseconds{3000};
-////#else
-////    timePoint2 += milliseconds{15000};
-////#endif
-////    std::this_thread::sleep_until(timePoint2);
-//
-//    DPRINTF(DEBUG_CAS_Client, "WARMUP DONE\n");
-//
-//    return result;
-//}
-
 inline uint32_t ip_str_to_int(const std::string& ip){
     uint32_t ret = 0;
     uint j = 0;
@@ -307,7 +237,7 @@ inline uint32_t ip_str_to_int(const std::string& ip){
 // This function will create a client and start sending requests
 int run_session(uint req_idx){
 
-    auto timePoint3 = time_point_cast<milliseconds>(system_clock::now());
+    // auto timePoint3 = time_point_cast<milliseconds>(system_clock::now());
     int cnt = 0;        // Count the number of requests
     uint32_t client_id = get_unique_client_id(datacenter_id, conf_id, grp_id, req_idx);
 
@@ -505,6 +435,11 @@ int main(int argc, char* argv[]){
         return 1;
     }
     
+    // std::cout << argv[1] << "   " << argv[2] << "   " << argv[3] << "   " << argv[4] << "   " << argv[5] << "   " 
+    //         << argv[6] << "   " << argv[7] << "   " << argv[8] << "   " << argv[9] << "   " << argv[10] << "   " << argv[11];
+
+    // ./Client 0 2 100000 100000 1 0 2 10 0.5 10 1
+
     datacenter_id = stoul(argv[1]);
     retry_attempts_number = stoul(argv[2]);
     metadata_server_timeout = stoul(argv[3]);
@@ -523,10 +458,6 @@ int main(int argc, char* argv[]){
     assert(read_detacenters_info("./config/auto_test/datacenters_access_info.json") == 0);
 #endif
     assert(read_keys("./config/auto_test/input_workload.json") == 0);
-
-//    for(auto it = datacenters.begin(); it != datacenters.end(); it++){
-//        DPRINTF(DEBUG_CAS_Client, "%u: port = %hu\n", (*it)->id, (*it)->servers[0]->port);
-//    }
     
     request_generator_for_groupconfig();
     

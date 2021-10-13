@@ -204,6 +204,11 @@ struct Properties{
     ~Properties();
 };
 
+struct Configuration {
+    std::string confid;
+    Placement placement;
+};
+
 int get_random_number_uniform(int min, int max, int seed = std::chrono::system_clock::now().time_since_epoch().count());
 double get_random_real_number_uniform(double min, double max, int seed = std::chrono::system_clock::now().time_since_epoch().count());
 
@@ -297,8 +302,9 @@ private:
 void print_time();
 
 int ask_metadata(const std::string& metadata_server_ip, const std::string& metadata_server_port,
-        const std::string& key, const uint32_t conf_id, uint32_t& requested_conf_id, uint32_t& new_conf_id,
-        std::string& timestamp, Placement& p, uint32_t retry_attempts, uint32_t metadata_server_timeout, std::string& secondary_configs);
+                const std::string& key, std::string& ready_conf_id, Placement& ready_placement, 
+                std::string& toret_conf_id, Placement& toret_placement,
+                uint32_t retry_attempts, uint32_t metadata_server_timeout);
 
 template<typename T>
 void set_intersection(const Placement& p, std::unordered_set <T>& res);

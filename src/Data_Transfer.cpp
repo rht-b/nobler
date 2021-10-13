@@ -530,6 +530,15 @@ std::string DataTransfer::serializeMDS(const std::string& status, const std::str
     return DataTransfer::serializeMDS(status, msg, key, ready_conf_id, ready_placement, toret_conf_id, toret_placement);
 }
 
+std::string DataTransfer::serializeMDS(const std::string& status, const std::string& msg, const std::string& key){
+    
+    std::string ready_conf_id = "";
+    Placement ready_placement;
+    std::string toret_conf_id = "";
+    Placement toret_placement;
+    return DataTransfer::serializeMDS(status, msg, key, ready_conf_id, ready_placement, toret_conf_id, toret_placement);
+}
+
 std::string DataTransfer::serializeMDS(const std::string& status, const std::string& msg){
     
     std::string key = "";

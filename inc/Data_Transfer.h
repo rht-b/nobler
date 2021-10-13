@@ -52,6 +52,8 @@ public:
     static std::string serializeMDS(const std::string& status, const std::string& msg, const std::string& key,
                                     const std::string& ready_conf_id, const Placement& ready_placement);
 
+    static std::string serializeMDS(const std::string& status, const std::string& msg, const std::string& key);
+
     static std::string serializeMDS(const std::string& status, const std::string& msg);
 
 

@@ -49,7 +49,7 @@ private:
 
     std::shared_ptr<Cache> cache_p;
     std::shared_ptr<Persistent> persistent_p;
-    const std::shared_ptr<std::vector<std::unique_ptr<std::mutex>>>& mu_p_vec_p;
+    std::shared_ptr<std::vector<std::unique_ptr<std::mutex>>> mu_p_vec_p;
 };
 
 #endif /* ABD_Server_H */

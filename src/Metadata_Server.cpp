@@ -44,11 +44,6 @@ using namespace std;
  * if no reconfiguration has happened on key!confid, newconfid will be confid and timestamp will be ""
  */
 
-struct Configuration {
-    string confid;
-    Placement placement;
-};
-
 std::mutex key_config_info_lock;
 std::map<std::string, std::pair<Configuration, Configuration>> key_config_info;
 

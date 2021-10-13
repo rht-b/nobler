@@ -158,7 +158,7 @@ std::string ABD_Server::reconfig_query(const std::string& key, uint32_t conf_id,
     }
 
     data[2] = "t";
-    data[4] = new_conf_id;
+    data[4] = std::to_string(new_conf_id);
     data[5] = new_conf_placement;
 
     put_data(con_key, data);

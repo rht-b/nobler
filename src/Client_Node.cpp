@@ -44,20 +44,19 @@ const uint32_t& Client_Node::get_id() const{
     return ret;
 }
 
-int Client_Node::update_placement(const std::string& key, const uint32_t conf_id){
+int Client_Node::update_placement(const std::string& key){
     
     int ret = 0;
-    
-    uint32_t requested_conf_id;
-    uint32_t new_conf_id; // Not usefull for client
-    std::string timestamp; // Not usefull for client
-    std::string sec_configs;
-    Placement p;
+
+    std::string ready_conf_id;
+    Placement ready_placement;
+    std::string toret_conf_id;
+    Placement toret_placement;
 
     if(this->abd != nullptr){
         ret = ask_metadata(this->abd->get_metadata_server_ip(), this->abd->get_metadata_server_port(), key,
-                           conf_id, requested_conf_id, new_conf_id, timestamp, p, this->abd->get_retry_attempts(),
-                           this->abd->get_metadata_server_timeout(), sec_configs);
+                           ready_conf_id, ready_placement, toret_conf_id, toret_placement, this->abd->get_retry_attempts(),
+                           this->abd->get_metadata_server_timeout());
     }
     else{
         ret = -1;
@@ -65,93 +64,73 @@ int Client_Node::update_placement(const std::string& key, const uint32_t conf_id
     }
     
     assert(ret == 0);
-   
-    // Update secondary configs list
-    std::vector<uint32_t> vec;
-    std::cout << "gkc5188, update: " << sec_configs << endl;
-    if(sec_configs.length() > 0) {
-        size_t pos = 0;
-        std::string token;
-        std::string delimiter = "!";
-        while ((pos = sec_configs.find(delimiter)) != std::string::npos) {
-            token = sec_configs.substr(0, pos);
-            vec.push_back(stoul(token));
-            sec_configs.erase(0, pos + delimiter.length());
-        }
-    }
-    this->secondary_configs[key] = vec; 
 
-    keys_info[key] = std::pair<uint32_t, Placement>(requested_conf_id, p);
-    ret = 0;
+    DPRINTF(DEBUG_CAS_Client, "ask_metadata fetched ready_conf_id=%s toret_conf_id=%s\n", ready_conf_id.c_str(), toret_conf_id.c_str());
 
-    assert(p.m != 0);
+    keys_info[key].first.confid = ready_conf_id;
+    keys_info[key].first.placement = ready_placement;
+    keys_info[key].second.confid = toret_conf_id;
+    keys_info[key].second.placement = toret_placement;
+
+    assert(ready_placement.m != 0);
 
     DPRINTF(DEBUG_CAS_Client, "finished\n");
     return ret;
 }
 
-const Placement& Client_Node::get_placement(const std::string& key, const bool force_update, const uint32_t conf_id){
+const std::pair<Configuration, Configuration>& Client_Node::get_placement(const std::string& key, const bool force_update){
+
     uint64_t le_init = time_point_cast<std::chrono::milliseconds>(std::chrono::system_clock::now()).time_since_epoch().count();
     
     if(force_update){
-        assert(update_placement(key, conf_id) == 0);
+        assert(update_placement(key) == 0);
         auto it = this->keys_info.find(key);
         DPRINTF(DEBUG_CAS_Client, "latencies: %lu\n", time_point_cast<std::chrono::milliseconds>(std::chrono::system_clock::now()).time_since_epoch().count() - le_init);
-        return it->second.second;
+        return it->second;
     }
     else{
         auto it = this->keys_info.find(key);
         if(it != this->keys_info.end()){
-//            if(it->second.first < conf_id){
             DPRINTF(DEBUG_CAS_Client, "latencies: %lu\n", time_point_cast<std::chrono::milliseconds>(std::chrono::system_clock::now()).time_since_epoch().count() - le_init);
-            return it->second.second;
-//            }
-//            else{
-//                assert(update_placement(key, conf_id) == 0);
-//                return this->keys_info[key].second;
-//            }
+            return it->second;
         }
         else{
-            assert(update_placement(key, conf_id) == 0);
+            assert(update_placement(key) == 0);
             DPRINTF(DEBUG_CAS_Client, "latencies: %lu\n", time_point_cast<std::chrono::milliseconds>(std::chrono::system_clock::now()).time_since_epoch().count() - le_init);
-            return this->keys_info[key].second;
+            return this->keys_info[key];
         }
     }
-    
 }
 
-const Placement& Client_Node::get_placement(const std::string& key, const bool force_update, const std::string& conf_id){
-    return this->get_placement(key, force_update, stoul(conf_id));
-}
-
-const uint32_t& Client_Node::get_conf_id(const std::string& key){
+// Ready/Active configuration for the key known by Client
+uint32_t Client_Node::get_conf_id(const std::string& key){
     auto it = this->keys_info.find(key);
     if(it != this->keys_info.end()){
-        return it->second.first;
+        return stoui(it->second.first.confid);
     }
     else{
-        assert(update_placement(key, 0) == 0);
-        return this->keys_info[key].first;
+        assert(update_placement(key) == 0);
+        return stoui(this->keys_info[key].first.confid);
     }
 }
 
 int Client_Node::put(const std::string& key, const std::string& value){
-    const Placement& p = get_placement(key);
-    if(p.protocol == CAS_PROTOCOL_NAME){
-        return this->cas->put(key, value);
+    int retval = this->abd->put(key, value);
+
+    if(retval == S_RECFG) {
+        this->abd->put(key, value);
     }
-    else{
-        return this->abd->put(key, value);
-    }
+
+    return retval;
 }
 
 
 int Client_Node::get(const std::string& key, std::string& value){
-    const Placement& p = get_placement(key);
-    if(p.protocol == CAS_PROTOCOL_NAME){
-        return this->cas->get(key, value);
+    int retval = this->abd->get(key, value);
+
+    if(retval == S_RECFG) {
+        this->abd->get(key, value);
     }
-    else{
-        return this->abd->get(key, value);
-    }
+
+    return retval;
 }

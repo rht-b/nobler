@@ -27,23 +27,21 @@ public:
     int put(const std::string& key, const std::string& value);
     int get(const std::string& key, std::string& value);
     
-    // There must be something on the metadata server with conf_id zero for initialization
-    const Placement& get_placement(const std::string& key, const bool force_update = false, const uint32_t conf_id = 0);
-    const Placement& get_placement(const std::string& key, const bool force_update, const std::string& conf_id);
-    const uint32_t& get_conf_id(const std::string& key);
+    // There must be something on the metadata server for the key
+    const std::pair<Configuration, Configuration>& get_placement(const std::string& key, const bool force_update = false);
+    uint32_t get_conf_id(const std::string& key);
     
     // getters
     const uint32_t& get_id() const;
-    std::map <std::string, std::vector<uint32_t>>  secondary_configs;
 
 private:
     // a map from a key to its conf_id and its placement
-    std::map <std::string, std::pair<uint32_t, Placement> > keys_info;
+    std::map <std::string, std::pair<Configuration, Configuration> > keys_info;
     
     ABD_Client* abd;
     CAS_Client* cas;
     
-    int update_placement(const std::string& key, const uint32_t conf_id = 0);
+    int update_placement(const std::string& key);
 };
 
 #endif /* CLIENT_NODE_H */
