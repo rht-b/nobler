@@ -357,6 +357,7 @@ int ABD_Client::get_timestamp(const string& key, unique_ptr<Timestamp>& timestam
     op_status = ret_obj.first;
     DPRINTF(DEBUG_ABD_Client, "op_status: %d.\n", op_status);
     if(op_status == -1) {
+        delete ret;
         return op_status;
     }
 
@@ -374,8 +375,11 @@ int ABD_Client::get_timestamp(const string& key, unique_ptr<Timestamp>& timestam
         }
         else if((*it)[0] == "OPFAIL"){
             DPRINTF(DEBUG_ABD_Client, "operation_fail received for key : %s\n", key.c_str());
+            
             parent->get_placement(key, true);
             timestamp_p.reset();
+
+            delete ret;
             return S_RECFG;
         }
         else{
@@ -395,6 +399,8 @@ int ABD_Client::get_timestamp(const string& key, unique_ptr<Timestamp>& timestam
         assert(false);
         return S_FAIL;
     }
+
+    delete ret;
 
     DPRINTF(DEBUG_ABD_Client, "end latencies%d: %lu\n", le_counter++, time_point_cast<chrono::milliseconds>(chrono::system_clock::now()).time_since_epoch().count() - le_init);
     
@@ -477,6 +483,11 @@ int ABD_Client::put(const string& key, const string& value){
         }
 
         if(cfgToPropagateFound == false) {
+            
+            for(auto it = retVecMap.begin(); it != retVecMap.end(); it++) {
+                delete it->second;
+            }
+
             break;
         } else {
             // get value from future 
@@ -597,6 +608,7 @@ int ABD_Client::get(const string& key, string& value){
     DPRINTF(DEBUG_ABD_Client, "done calling failure_support_optimized.\n");
     DPRINTF(DEBUG_ABD_Client, "op_status: %d.\n", op_status);
     if(op_status == -1) {
+        delete ret;
         return op_status;
     }
 
@@ -626,13 +638,18 @@ int ABD_Client::get(const string& key, string& value){
         }
         else if((*it)[0] == "OPFAIL"){
             DPRINTF(DEBUG_ABD_Client, "operation_fail received for key : %s\n", key.c_str());
+            
             parent->get_placement(key, true);
+
+            delete ret;
             return S_RECFG;
         }
         else{
             assert(false);
         }
     }
+
+    delete ret;
     
     if(op_status == 0){
         idx = Timestamp::max_timestamp3(tss);
@@ -674,7 +691,13 @@ int ABD_Client::get(const string& key, string& value){
         }
 
         if(cfgToPropagateFound == false) {
+         
+            for(auto it = retVecMap.begin(); it != retVecMap.end(); it++) {
+                delete it->second;
+            }
+
             break;
+            
         } else {
             // get value from future 
             for(auto respit = responses.begin(); respit != responses.end(); respit++) {
