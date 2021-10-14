@@ -97,7 +97,7 @@ namespace ABD_helper{
                                     std::vector<uint32_t> quorom, vector<uint32_t> servers, uint32_t total_num_servers,
                                     std::vector<DC*>& datacenters, const std::string current_class, 
                                     const uint32_t conf_id, uint32_t timeout_per_request, 
-                                    std::vector<strVec> &ret, std::promise <std::pair<int, 
+                                    std::vector<strVec>* ret, std::promise <std::pair<int, 
                                     std::vector<strVec>>> && parent_prm){
         DPRINTF(DEBUG_ABD_Client, "started.\n");
 
@@ -105,7 +105,7 @@ namespace ABD_helper{
 
         map <uint32_t, future<strVec> > responses; // server_id, future
         vector<bool> done(total_num_servers, false);
-        ret.clear();
+        ret->clear();
 
         int op_status = 0;    // 0: Success, -1: timeout, -2: operation_fail(reconfiguration)
         RAs--;
@@ -133,7 +133,7 @@ namespace ABD_helper{
             if(it->second.valid() && it->second.wait_for(chrono::milliseconds(1)) == future_status::ready){
                 strVec data = it->second.get();
                 if(data.size() != 0){
-                    ret.push_back(data);
+                    ret->push_back(data);
                     done[it->first] = true;
 //                    DPRINTF(DEBUG_ABD_Client, "one done.\n");
                     if(number_of_received_responses(done) == quorom.size()){
@@ -192,7 +192,7 @@ namespace ABD_helper{
                     it->second.wait_for(chrono::milliseconds(1)) == future_status::ready){
                     strVec data = it->second.get();
                     if(data.size() != 0){
-                        ret.push_back(data);
+                        ret->push_back(data);
                         done[it->first] = true;
                         if(number_of_received_responses(done) == quorom.size()){
                             EASY_LOG_M("Responses collected successfully");
@@ -217,7 +217,7 @@ namespace ABD_helper{
         }
         std::pair<int, std::vector<strVec>> ret_obj;
         ret_obj.first = op_status;
-        ret_obj.second = ret;
+        ret_obj.second = *ret;
         parent_prm.set_value(std::move(ret_obj));
         return;
     }
@@ -345,13 +345,13 @@ int ABD_Client::get_timestamp(const string& key, unique_ptr<Timestamp>& timestam
     const Placement& p = mainConf.placement;
     int op_status = 0;    // 0: Success, -1: timeout, -2: operation_fail(reconfiguration)
 
-    vector<strVec> ret;
+    vector<strVec>* ret = new vector<strVec>;
     DPRINTF(DEBUG_ABD_Client, "calling failure_support_optimized.\n");
     std::promise <std::pair<int, std::vector<strVec>>> prm;
     std::future<std::pair<int, std::vector<strVec>>> fut = prm.get_future();
     std::thread(&ABD_helper::failure_support_optimized, "get_timestamp", key, "", "", this->retry_attempts, p.quorums[this->local_datacenter_id].Q1, p.servers, p.m,
                                                  std::ref(this->datacenters), this->current_class, stoui(mainConf.confid),
-                                                 this->timeout_per_request, std::ref(ret), std::move(prm)).detach();
+                                                 this->timeout_per_request, ret, std::move(prm)).detach();
 
     std::pair<int, std::vector<strVec>> ret_obj = fut.get();
     op_status = ret_obj.first;
@@ -360,7 +360,7 @@ int ABD_Client::get_timestamp(const string& key, unique_ptr<Timestamp>& timestam
         return op_status;
     }
 
-    for(auto it = ret.begin(); it != ret.end(); it++) {
+    for(auto it = ret->begin(); it != ret->end(); it++) {
         if((*it)[0] == "OK"){
             tss.emplace_back((*it)[1]);
             
@@ -419,7 +419,7 @@ int ABD_Client::put(const string& key, const string& value){
     std::map<std::string, std::pair<bool, Configuration>> sconf;
     // Adding ready config for propagate phase
     sconf[mds_config.first.confid].first = false;
-    sconf[mds_config.first.confid].second = mds_config.second;
+    sconf[mds_config.first.confid].second = mds_config.first;
     // Adding to-retire config from metadata server is not null
     if(mds_config.second.confid != "") {
         sconf[mds_config.second.confid].first = false;
@@ -454,6 +454,7 @@ int ABD_Client::put(const string& key, const string& value){
     while(true) {
         bool cfgToPropagateFound = false;
         map <std::string, future<std::pair<int, std::vector<strVec>>> > responses; // conf_id, future
+        map <std::string, std::vector<strVec>* > retVecMap; // conf_id, respvector
 
         for(auto it = sconf.begin(); it != sconf.end(); it++) {
             if(it->second.first == false) {
@@ -462,7 +463,8 @@ int ABD_Client::put(const string& key, const string& value){
                 it->second.first = true;
                 Configuration cfgToPropagate = it->second.second;
 
-                vector<strVec> retVec;
+                // vector<strVec> retVec;
+                retVecMap[cfgToPropagate.confid] = new vector<strVec>;
                 std::promise <std::pair<int, std::vector<strVec>>> prmPrp;
                 responses.emplace(it->first, prmPrp.get_future());
 
@@ -470,7 +472,7 @@ int ABD_Client::put(const string& key, const string& value){
                                                                 cfgToPropagate.placement.quorums[this->local_datacenter_id].Q2,
                                                                 cfgToPropagate.placement.servers, cfgToPropagate.placement.m,
                                                                 std::ref(this->datacenters), this->current_class, stoui(cfgToPropagate.confid),
-                                                                this->timeout_per_request, std::ref(retVec), std::move(prmPrp)).detach();
+                                                                this->timeout_per_request, retVecMap[cfgToPropagate.confid], std::move(prmPrp)).detach();
             }
         }
 
@@ -558,10 +560,10 @@ int ABD_Client::get(const string& key, string& value){
 
     DPRINTF(DEBUG_ABD_Client, "started on key %s\n", key.c_str());
 
-    EASY_LOG_INIT_M(string("on key ") + key);
+    DPRINTF(DEBUG_ABD_Client, "on key %s\n", key.c_str());
 
     Key_gaurd(this, key);
-    EASY_LOG_M("lock for the key granted");
+    DPRINTF(DEBUG_ABD_Client, "lock for the key granted\n");
 
     int le_counter = 0;
     uint64_t le_init = time_point_cast<chrono::milliseconds>(chrono::system_clock::now()).time_since_epoch().count();
@@ -571,13 +573,13 @@ int ABD_Client::get(const string& key, string& value){
     
     const std::pair<Configuration, Configuration>& mds_config = parent->get_placement(key);
     const Placement& p = mds_config.first.placement;
-    EASY_LOG_M("placement received. trying to do phase 1...");
+    DPRINTF(DEBUG_ABD_Client, "placement received. trying to do phase 1...\n");
     int op_status = 0;    // 0: Success, -1: timeout, -2: operation_fail(reconfiguration)
 
     vector<Timestamp> tss;
     vector<string> vs;
     uint32_t idx = -1;
-    vector<strVec> ret;
+    vector<strVec>* ret = new vector<strVec>;
 
     DPRINTF(DEBUG_ABD_Client, "calling failure_support_optimized.\n");
     std::promise <std::pair<int, std::vector<strVec>>> prm;
@@ -586,12 +588,13 @@ int ABD_Client::get(const string& key, string& value){
     std::thread(&ABD_helper::failure_support_optimized, "get", key, "", "", this->retry_attempts, p.quorums[this->local_datacenter_id].Q1,
                                                                  p.servers, p.m,
                                                                  std::ref(this->datacenters), this->current_class, stoui(mds_config.first.confid),
-                                                                 this->timeout_per_request, std::ref(ret), std::move(prm)).detach();
+                                                                 this->timeout_per_request, ret, std::move(prm)).detach();
 
 
     std::pair<int, std::vector<strVec>> ret_obj = fut.get();
     op_status = ret_obj.first;
     
+    DPRINTF(DEBUG_ABD_Client, "done calling failure_support_optimized.\n");
     DPRINTF(DEBUG_ABD_Client, "op_status: %d.\n", op_status);
     if(op_status == -1) {
         return op_status;
@@ -600,7 +603,7 @@ int ABD_Client::get(const string& key, string& value){
     std::map<std::string, std::pair<bool, Configuration>> sconf;
     // Adding ready config for propagate phase
     sconf[mds_config.first.confid].first = false;
-    sconf[mds_config.first.confid].second = mds_config.second;
+    sconf[mds_config.first.confid].second = mds_config.first;
     // Adding to-retire config from metadata server is not null
     if(mds_config.second.confid != "") {
         sconf[mds_config.second.confid].first = false;
@@ -608,7 +611,7 @@ int ABD_Client::get(const string& key, string& value){
     }
     
 
-    for(auto it = ret.begin(); it != ret.end(); it++) {
+    for(auto it = ret->begin(); it != ret->end(); it++) {
         if((*it)[0] == "OK"){
             tss.emplace_back((*it)[1]);
             vs.emplace_back((*it)[2]);
@@ -640,7 +643,7 @@ int ABD_Client::get(const string& key, string& value){
         return S_FAIL;
     }
 
-    EASY_LOG_M("phase 1 done. Trying to do phase 2...");
+    DPRINTF(DEBUG_ABD_Client, "phase 1 done. Trying to do phase 2...");
 
     DPRINTF(DEBUG_ABD_Client, "phase 1 fin, put latencies%d: %lu\n", le_counter++, time_point_cast<chrono::milliseconds>(chrono::system_clock::now()).time_since_epoch().count() - le_init);
 
@@ -648,6 +651,7 @@ int ABD_Client::get(const string& key, string& value){
     while(true) {
         bool cfgToPropagateFound = false;
         map <std::string, future<std::pair<int, std::vector<strVec>>> > responses; // conf_id, future
+        map <std::string, std::vector<strVec>* > retVecMap; // conf_id, respvector
 
         for(auto it = sconf.begin(); it != sconf.end(); it++) {
             if(it->second.first == false) {
@@ -656,7 +660,8 @@ int ABD_Client::get(const string& key, string& value){
                 it->second.first = true;
                 Configuration cfgToPropagate = it->second.second;
 
-                vector<strVec> retVec;
+                // vector<strVec> retVec;
+                retVecMap[cfgToPropagate.confid] = new vector<strVec>;
                 std::promise <std::pair<int, std::vector<strVec>>> prmPrp;
                 responses.emplace(it->first, prmPrp.get_future());
 
@@ -664,7 +669,7 @@ int ABD_Client::get(const string& key, string& value){
                                                                 cfgToPropagate.placement.quorums[this->local_datacenter_id].Q2,
                                                                 cfgToPropagate.placement.servers, cfgToPropagate.placement.m,
                                                                 std::ref(this->datacenters), this->current_class, stoui(cfgToPropagate.confid),
-                                                                this->timeout_per_request, std::ref(retVec), std::move(prmPrp)).detach();
+                                                                this->timeout_per_request, retVecMap[cfgToPropagate.confid], std::move(prmPrp)).detach();
             }
         }
 
@@ -699,6 +704,8 @@ int ABD_Client::get(const string& key, string& value){
             }
         }
     }
+
+    DPRINTF(DEBUG_ABD_Client, "phase 2 done. Going back...");
 
 
 //     DPRINTF(DEBUG_ABD_Client, "calling do_operation in get.\n");
@@ -744,7 +751,7 @@ int ABD_Client::get(const string& key, string& value){
         value = vs[idx];
     }
 
-    EASY_LOG_M("phase 2 done.");
+    DPRINTF(DEBUG_ABD_Client, "phase 2 done.");
     DPRINTF(DEBUG_ABD_Client, "end latencies%d: %lu\n", le_counter++, time_point_cast<chrono::milliseconds>(chrono::system_clock::now()).time_since_epoch().count() - le_init);
     return op_status;
 }

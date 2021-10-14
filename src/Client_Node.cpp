@@ -44,6 +44,16 @@ const uint32_t& Client_Node::get_id() const{
     return ret;
 }
 
+// std::string printPlacement(Placement& p) {
+//     std::string str = "protocol=" + p.protocol;
+//     str += " servers=";
+
+//     for(int i = 0; i < p.servers.size(); i++) {
+//         str += to_string(p.servers.at(i)) + ",";
+//     }  
+//     return str;
+// }
+
 int Client_Node::update_placement(const std::string& key){
     
     int ret = 0;
@@ -66,6 +76,8 @@ int Client_Node::update_placement(const std::string& key){
     assert(ret == 0);
 
     DPRINTF(DEBUG_CAS_Client, "ask_metadata fetched ready_conf_id=%s toret_conf_id=%s\n", ready_conf_id.c_str(), toret_conf_id.c_str());
+    // DPRINTF(DEBUG_CAS_Client, "ask_metadata fetched ready_placement=%s toret_placement=%s\n", printPlacement(ready_placement).c_str(), 
+    //         printPlacement(toret_placement).c_str());
 
     keys_info[key].first.confid = ready_conf_id;
     keys_info[key].first.placement = ready_placement;
@@ -117,8 +129,8 @@ uint32_t Client_Node::get_conf_id(const std::string& key){
 int Client_Node::put(const std::string& key, const std::string& value){
     int retval = this->abd->put(key, value);
 
-    if(retval == S_RECFG) {
-        this->abd->put(key, value);
+    while(retval == S_RECFG) {
+        retval = this->abd->put(key, value);
     }
 
     return retval;
@@ -128,8 +140,8 @@ int Client_Node::put(const std::string& key, const std::string& value){
 int Client_Node::get(const std::string& key, std::string& value){
     int retval = this->abd->get(key, value);
 
-    if(retval == S_RECFG) {
-        this->abd->get(key, value);
+    while(retval == S_RECFG) {
+        retval = this->abd->get(key, value);
     }
 
     return retval;

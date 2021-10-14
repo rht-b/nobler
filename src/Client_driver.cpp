@@ -460,6 +460,11 @@ int main(int argc, char* argv[]){
     assert(read_keys("./config/auto_test/input_workload.json") == 0);
     
     request_generator_for_groupconfig();
+    // std::string read_value;
+    
+    // uint32_t client_id = get_unique_client_id(datacenter_id, conf_id, grp_id, 1);
+    // Client_Node clt(client_id, datacenter_id, retry_attempts_number, metadata_server_timeout, timeout_per_request, datacenters);
+    // std::cout << clt.get(keys[0], read_value);
     
     return 0;
 }
