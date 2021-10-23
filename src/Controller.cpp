@@ -65,6 +65,12 @@ int Controller::read_detacenters_info(const string& file){
             dc->servers.push_back(sv);
         }
 
+        for(auto& client : it.value()["clients"].items()){
+            string temp;
+            client.value()["host"].get_to(temp);
+            properties.clients.push_back(temp);
+        }
+
         this->properties.datacenters.push_back(dc);
     }
     cfg.close();
@@ -456,7 +462,7 @@ int Controller::run_client(uint32_t datacenter_id, uint32_t conf_id, uint32_t gr
 //    DPRINTF(DEBUG_RECONFIG_CONTROL, "333333333333\n");
 
 
-    vector<string> args = {"ssh", "-o", "StrictHostKeyChecking no", "-t", properties.datacenters[datacenter_indx]->servers[0]->ip, command};
+    vector<string> args = {"ssh", "-o", "StrictHostKeyChecking no", "-t", properties.clients[datacenter_indx], command};
     string output;
     int status = execute("/usr/bin/ssh", args, output);
     
@@ -487,7 +493,11 @@ int Controller::init_metadata_server(){
     assert(properties.group_configs.size() > 0);
     vector<future<int>> rets;
 
+    cout << "init configuration started" << endl;
+
+    auto epochStart = time_point_cast<std::chrono::microseconds>(std::chrono::system_clock::now()).time_since_epoch().count();
     const Group_config& gc = this->properties.group_configs[0];
+    
     for(uint i = 0; i < gc.groups.size(); i++){
         for(uint j = 0; j < gc.groups[i].keys.size(); j++){
             string key = gc.groups[i].keys[j];
@@ -505,6 +515,10 @@ int Controller::init_metadata_server(){
             assert(false);
         }
     }
+
+    auto epochEnd = time_point_cast<std::chrono::microseconds>(std::chrono::system_clock::now()).time_since_epoch().count();
+    cout << "init configuration latency: " << (double)(epochEnd - epochStart) / 1000. << endl;
+
     return 0;
 }
 
@@ -613,6 +627,9 @@ int Controller::run_reconfigurer(){ //Todo: make it more reliable
         timePoint = startPoint + milliseconds{gc.timestamp * 1000};
         this_thread::sleep_until(timePoint);
 
+        cout << "reconfiguration started! " << endl;
+        auto epochStart = time_point_cast<chrono::microseconds>(chrono::system_clock::now()).time_since_epoch().count();
+
         for(uint j = 0; j < gc.groups.size(); j++){
             Group& curr = gc.groups[j];
             DPRINTF(DEBUG_RECONFIG_CONTROL, "Starting the reconfiguration for group id %u\n", curr.id);
@@ -624,10 +641,12 @@ int Controller::run_reconfigurer(){ //Todo: make it more reliable
             auto epoch = time_point_cast<chrono::microseconds>(chrono::system_clock::now()).time_since_epoch().count();
             reconfigurer_p->reconfig(old, old_conf_id, curr, gc.id);
             auto epoch2 = time_point_cast<chrono::microseconds>(chrono::system_clock::now()).time_since_epoch().count();
-            cout << "reconfiguration latency: " << (double)(epoch2 - epoch) / 1000000. << endl;
+            cout << "reconfiguration latency: " << (double)(epoch2 - epoch) / 1000. << endl;
 
         }
 
+        auto epochEnd = time_point_cast<chrono::microseconds>(chrono::system_clock::now()).time_since_epoch().count();
+        cout << "reconfiguration completed! latency: " << (double)(epochEnd - epochStart) / 1000. << endl;
     }
     return S_OK;
 }

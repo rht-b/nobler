@@ -10,7 +10,7 @@
 #include <netinet/tcp.h>
 
 void message_handler(int connection, DataServer& dataserver, int portid, std::string& recvd){
-
+    auto epoch = time_point_cast<std::chrono::microseconds>(std::chrono::system_clock::now()).time_since_epoch().count();
     int result = 1;
     
     strVec data = DataTransfer::deserialize(recvd);
@@ -32,8 +32,8 @@ void message_handler(int connection, DataServer& dataserver, int portid, std::st
         result = DataTransfer::sendMsg(connection, dataserver.get_timestamp(data[1], data[2], stoul(data[3])));
     }
     else if(method == "reconfig_query"){
-        DPRINTF(DEBUG_ABD_Server, "The method reconfig_query is called. The key is %s, class: %s, conf_id: %s, new_conf_id: %s, placement: %s server port is %u\n", 
-                data[1].c_str(), data[2].c_str(), data[3].c_str(), data[4].c_str(), data[5].c_str(), portid);
+        DPRINTF(DEBUG_ABD_Server, "The method reconfig_query is called. The key is %s, class: %s, conf_id: %s, new_conf_id: %s, server port is %u\n", 
+                data[1].c_str(), data[2].c_str(), data[3].c_str(), data[4].c_str(), portid);
             result = DataTransfer::sendMsg(connection, dataserver.reconfig_query(data[1], data[2], stoul(data[3]), stoul(data[4]), data[5]));
     }
     else if(method == "reconfig_commit"){
@@ -53,6 +53,9 @@ void message_handler(int connection, DataServer& dataserver, int portid, std::st
     if(result != 1){
         DataTransfer::sendMsg(connection, DataTransfer::serialize({"Failure", "Server Response failed"}));
     }
+
+    auto epoch2 = time_point_cast<std::chrono::microseconds>(std::chrono::system_clock::now()).time_since_epoch().count();
+    DPRINTF(DEBUG_ABD_Server, "exec took: %lu\n", (epoch2-epoch));
 }
 
 void server_connection(int connection, DataServer& dataserver, int portid){
@@ -106,9 +109,7 @@ void runServer(const std::string& db_name, const std::string& socket_port, const
     int portid = stoi(socket_port);
     std::cout << "Alive port " << portid << std::endl;
     while(1){
-        std::cout << "in while loop" << std::endl;
         int new_sock = accept(ds->getSocketDesc(), NULL, 0);
-        std::cout << "Received Request!!1  PORT:" << portid << std::endl;
         std::thread cThread([&ds, new_sock, portid](){ server_connection(new_sock, *ds, portid); });
         cThread.detach();
     }

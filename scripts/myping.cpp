@@ -190,15 +190,18 @@ int main(int argc, char* argv[]){
 		args.push_back("ping");
 		args.push_back(ips[i]);
 		args.push_back("-c");
-		args.push_back("10");
+		args.push_back("100");
 		execute("/bin/ping", args, output);
+        ofstream lats(string("lats_from_server_") + argv[1] + "_to_server_" + to_string(i) + ".txt", ios::out);
+        lats << output << endl;
+        lats.close();
 		latencies.push_back(average(output));
 	}
 
 
 	ofstream out(string("latencies_from_server_") + argv[1] + ".txt", ios::out);
 	for (uint i = 0; i < latencies.size() - 1; ++i){
-		out << latencies[i] << " ";
+		out << latencies[i] << ", ";
 	}
 	out << latencies.back() << endl;
 	out.close();

@@ -50,12 +50,14 @@ using namespace std::chrono;
 #define MAX_LINGER_BEFORE_SOCK_CLOSE 50
 
 #define No_GET_OPTIMIZED
-#define LOCAL_TEST
+//#define LOCAL_TEST
 
 #ifdef LOCAL_TEST
 #define NUMBER_OF_OPS_FOR_WARM_UP 2
 #else
 #define NUMBER_OF_OPS_FOR_WARM_UP 30
+#define NUMBER_OF_OPS_TO_IGNORE 10
+#define DO_NOT_WRITE_VALUE_IN_LOGS
 #endif
 //#define METADATA_SERVER_IP      "127.0.0.1"
 //#define METADATA_SERVER_PORT    "11001"
@@ -200,6 +202,9 @@ struct Properties{
 
     std::vector<DC*> datacenters;
     std::vector<Group_config> group_configs;
+
+    // Todo: add it to the Datacenter struct
+    std::vector<std::string> clients;
     
     ~Properties();
 };

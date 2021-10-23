@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS =-Wall -std=c++11 -Iinc -g `pkg-config --cflags protobuf` -O0
+CXXFLAGS =-Wall -std=c++11 -Iinc -g `pkg-config --cflags protobuf`
 LDFLAGS = -lm -lerasurecode -lrocksdb -ldl -lpthread `pkg-config --libs protobuf`
 
 

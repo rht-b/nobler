@@ -6,7 +6,7 @@ import threading
 import subprocess
 from subprocess import PIPE
 
-gcloud = "/opt/google-cloud-sdk/bin/gcloud"
+gcloud = "gcloud"
 make = "/usr/bin/make"
 
 
@@ -31,7 +31,7 @@ def read_zones(zones_file_name='zones.txt'):
 
 def start_server(name, machine_type, zone):
     proc = subprocess.run(
-        [gcloud, "compute", "instances", "create", name, "--machine-type=" + machine_type, "--zone=" + zone],
+        [gcloud, "compute", "instances", "create", name, "--machine-type=" + machine_type, "--zone=" + zone, "--tags=http-server,https-server"],
         stdout=PIPE, stderr=PIPE)
     if proc.stderr.decode("utf-8").find("ERROR") != -1 or proc.stdout.decode("utf-8").find("ERROR") != -1:
         print(proc.stdout.decode("utf-8"), "\n---\n", proc.stderr.decode("utf-8"))
@@ -50,7 +50,7 @@ def execute(name, zone, cmd):
     proc = subprocess.run([gcloud, "compute", "ssh", name, "--zone", zone, "--command", cmd], stdout=PIPE, stderr=PIPE)
     if proc.stderr.decode("utf-8").find("ERROR") != -1 or proc.stdout.decode("utf-8").find("ERROR") != -1:
         print(proc.stdout.decode("utf-8"), "\n---\n", proc.stderr.decode("utf-8"))
-        raise Exception("Error in gathering information ")
+        raise Exception("Error in executing", cmd)
     return proc.stdout.decode("utf-8"), proc.stderr.decode("utf-8")
 
 
@@ -58,7 +58,7 @@ def scp_from(name, zone, file_from, file_to):
     proc = subprocess.run([gcloud, "compute", "scp", "--zone", zone, name + ":" + file_from, file_to], stdout=PIPE,
                           stderr=PIPE)
     if proc.stderr.decode("utf-8").find("ERROR") != -1 or proc.stdout.decode("utf-8").find("ERROR") != -1:
-        print(proc.stdout.decode("utf-8"), "\n---\n", proc.stderr.decode("utf-8"))
+        print(name + ": ", proc.stdout.decode("utf-8"), "\n---\n", proc.stderr.decode("utf-8"))
         raise Exception("Error in gathering information ")
 
 

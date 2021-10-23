@@ -660,7 +660,7 @@ int ABD_Client::get(const string& key, string& value){
         return S_FAIL;
     }
 
-    DPRINTF(DEBUG_ABD_Client, "phase 1 done. Trying to do phase 2...");
+    DPRINTF(DEBUG_ABD_Client, "phase 1 done. Trying to do phase 2...\n");
 
     DPRINTF(DEBUG_ABD_Client, "phase 1 fin, put latencies%d: %lu\n", le_counter++, time_point_cast<chrono::milliseconds>(chrono::system_clock::now()).time_since_epoch().count() - le_init);
 
@@ -728,7 +728,7 @@ int ABD_Client::get(const string& key, string& value){
         }
     }
 
-    DPRINTF(DEBUG_ABD_Client, "phase 2 done. Going back...");
+    DPRINTF(DEBUG_ABD_Client, "phase 2 done. Going back...\n");
 
 
 //     DPRINTF(DEBUG_ABD_Client, "calling do_operation in get.\n");
@@ -774,7 +774,7 @@ int ABD_Client::get(const string& key, string& value){
         value = vs[idx];
     }
 
-    DPRINTF(DEBUG_ABD_Client, "phase 2 done.");
+    DPRINTF(DEBUG_ABD_Client, "phase 2 done.\n");
     DPRINTF(DEBUG_ABD_Client, "end latencies%d: %lu\n", le_counter++, time_point_cast<chrono::milliseconds>(chrono::system_clock::now()).time_since_epoch().count() - le_init);
     return op_status;
 }
