@@ -31,6 +31,13 @@ Controller::Controller(uint32_t retry, uint32_t metadata_timeout, uint32_t timeo
 
     reconfigurer_p = unique_ptr<Reconfig>(new Reconfig(0, properties.local_datacenter_id, retry, metadata_timeout, timeout_per_req, properties.datacenters));
 
+#ifndef LOCAL_TEST
+    auto warm_up_tp = time_point_cast<milliseconds>(system_clock::now());;
+    warm_up_tp += seconds(WARM_UP_DELAY);
+    warm_up();
+    std::this_thread::sleep_until(warm_up_tp);
+#endif
+
     init_metadata_server();
 }
 
@@ -684,12 +691,12 @@ int Controller::warm_up(){
 
     for(auto it = properties.datacenters.begin(); it != properties.datacenters.end(); it++){
         warm_up_one_connection((*it)->metadata_server_ip, (*it)->metadata_server_port);
-        this_thread::sleep_for(milliseconds(get_random_number_uniform(0, 2000)));
+        this_thread::sleep_for(milliseconds(get_random_number_uniform(0, 20)));
     }
 
     for(auto it = properties.datacenters.begin(); it != properties.datacenters.end(); it++){
         warm_up_one_connection((*it)->servers[0]->ip, (*it)->servers[0]->port);
-        this_thread::sleep_for(milliseconds(get_random_number_uniform(0, 2000)));
+        this_thread::sleep_for(milliseconds(get_random_number_uniform(0, 20)));
     }
 
     return S_OK;
@@ -710,13 +717,6 @@ int main(){
     std::future<int> client_executer_fut = std::async(&Controller::run_all_clients, &master);
     // master.run_all_clients();
     DPRINTF(DEBUG_RECONFIG_CONTROL, "controller created\n");
-    
-#ifndef LOCAL_TEST
-    auto warm_up_tp = time_point_cast<milliseconds>(system_clock::now());;
-    warm_up_tp += seconds(WARM_UP_DELAY);
-    master.warm_up();
-    std::this_thread::sleep_until(warm_up_tp);
-#endif
 
     DPRINTF(DEBUG_RECONFIG_CONTROL, "run_reconfigurer\n");
     master.run_reconfigurer();

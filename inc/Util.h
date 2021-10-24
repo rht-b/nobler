@@ -54,6 +54,7 @@ using namespace std::chrono;
 
 #ifdef LOCAL_TEST
 #define NUMBER_OF_OPS_FOR_WARM_UP 2
+#define NUMBER_OF_OPS_TO_IGNORE 0
 #else
 #define NUMBER_OF_OPS_FOR_WARM_UP 30
 #define NUMBER_OF_OPS_TO_IGNORE 10
@@ -221,7 +222,7 @@ double get_random_real_number_uniform(double min, double max, int seed = std::ch
 #define WARM_UP_DELAY 30
 #define WARM_UP_SIZE (1024)
 #else
-#define WARM_UP_DELAY 300
+#define WARM_UP_DELAY 1
 #define WARM_UP_SIZE (2 * 1024)
 #endif
 

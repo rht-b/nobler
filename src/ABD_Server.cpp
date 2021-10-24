@@ -78,6 +78,7 @@ std::string ABD_Server::get_timestamp(const std::string& key, uint32_t conf_id){
     }
 
     if(data[3] == "t"){ // reconfig completed
+        DPRINTF(DEBUG_ABD_Client, "operation_fail sent for key : %s\n", key.c_str());
         return DataTransfer::serialize({"OPFAIL", "", "", ""});
     }
     else if(data[2] == "t") { // reconfig in progress
@@ -133,6 +134,7 @@ std::string ABD_Server::get(const std::string& key, uint32_t conf_id){
 
 
     if(data[3] == "t"){ // reconfig completed
+        DPRINTF(DEBUG_ABD_Client, "operation_fail sent for key : %s\n", key.c_str());
         return DataTransfer::serialize({"OPFAIL", "", "", "", ""});
     }
     else if(data[2] == "t") { // reconfig in progress

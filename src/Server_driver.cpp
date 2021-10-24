@@ -39,7 +39,7 @@ void message_handler(int connection, DataServer& dataserver, int portid, std::st
     else if(method == "reconfig_commit"){
         DPRINTF(DEBUG_ABD_Server, "The method reconfig_commit is called. The key is %s, ts: %s, value: %s, class: %s, new_conf_id: %s server port is %u\n", 
                 data[1].c_str(), data[2].c_str(), data[3].c_str(), data[4].c_str(), data[5].c_str(), portid);
-            result = DataTransfer::sendMsg(connection, dataserver.reconfig_commit(data[1], data[2], data[3], data[4], stoul(data[5])));
+            result = DataTransfer::sendMsg(connection, dataserver.reconfig_commit(data[1], data[2], (TRUNC_STR(data[3])).c_str(), data[4], stoul(data[5])));
     }
     else if(method == "finish_reconfig"){
         DPRINTF(DEBUG_ABD_Server, "The method finish_reconfig is called. The key is %s, class: %s, conf_id: %s server port is %u\n", data[1].c_str(),
@@ -55,7 +55,7 @@ void message_handler(int connection, DataServer& dataserver, int portid, std::st
     }
 
     auto epoch2 = time_point_cast<std::chrono::microseconds>(std::chrono::system_clock::now()).time_since_epoch().count();
-    DPRINTF(DEBUG_ABD_Server, "exec took: %lu\n", (epoch2-epoch));
+    //DPRINTF(DEBUG_ABD_Server, "exec took: %lu\n", (epoch2-epoch));
 }
 
 void server_connection(int connection, DataServer& dataserver, int portid){
@@ -94,7 +94,7 @@ void runServer(std::string& db_name, std::string& socket_port){
     std::cout << "Alive port " << portid << std::endl;
     while(1){
         int new_sock = accept(ds->getSocketDesc(), NULL, 0);
-        std::cout << "Received Request!  PORT:" << portid << std::endl;
+        // std::cout << "Received Request!  PORT:" << portid << std::endl;
         std::thread cThread([&ds, new_sock, portid](){ server_connection(new_sock, *ds, portid); });
         cThread.detach();
     }

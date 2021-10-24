@@ -21,7 +21,7 @@
           "object_size": 1024,
           "metadata_size": 1e-09,
           "num_objects": 5,
-          "arrival_rate": 200,
+          "arrival_rate": 100,
           "read_ratio": 0.5,
           "write_ratio": 0.5,
           "SLO_read": 1000,
@@ -29,7 +29,7 @@
           "duration": 60,
           "time_to_decode": 0.00028,
           "keys": [
-            "10", "20", "30", "40", "50", "60", "70", "80", "90", "100"
+            "10", "20", "30", "40", "50"
           ]
         }
       ]
@@ -55,7 +55,7 @@
           "object_size": 1024,
           "metadata_size": 1e-09,
           "num_objects": 5,
-          "arrival_rate": 200,
+          "arrival_rate": 100,
           "read_ratio": 0.5,
           "write_ratio": 0.5,
           "SLO_read": 1000,
@@ -63,7 +63,7 @@
           "duration": 60,
           "time_to_decode": 0.00028,
           "keys": [
-            "10", "20", "30", "40", "50", "60", "70", "80", "90", "100"
+            "10", "20", "30", "40", "50"
           ]
         }
       ]

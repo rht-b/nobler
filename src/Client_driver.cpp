@@ -211,12 +211,12 @@ int warm_up(){
 
     for(auto it = datacenters.begin(); it != datacenters.end(); it++){
         warm_up_one_connection((*it)->metadata_server_ip, (*it)->metadata_server_port);
-        std::this_thread::sleep_for(milliseconds(get_random_number_uniform(0, 2000)));
+        std::this_thread::sleep_for(milliseconds(get_random_number_uniform(0, 20)));
     }
 
     for(auto it = datacenters.begin(); it != datacenters.end(); it++){
         warm_up_one_connection((*it)->servers[0]->ip, (*it)->servers[0]->port);
-        std::this_thread::sleep_for(milliseconds(get_random_number_uniform(0, 2000)));
+        std::this_thread::sleep_for(milliseconds(get_random_number_uniform(0, 20)));
     }
 
     return S_OK;
@@ -283,7 +283,7 @@ int run_session(uint req_idx){
 
     // WARM UP THE SOCKETS
 //    warm_up(clt, file_logger);
-    // warm_up();
+    warm_up();
     // std::this_thread::sleep_until(timePoint3);
     
 //    DPRINTF(DEBUG_CAS_Client, "datacenter port: %u\n", datacenters[datacenter_id]->metadata_server_port);
