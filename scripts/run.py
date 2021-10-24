@@ -13,8 +13,8 @@ import run_optimizer as optimizer
 from collections import OrderedDict
 import json
 
-server_type = "e2-standard-2" # "n1-standard-1" # "f1-micro" #"e2-standard-2"
-client_type = "e2-standard-2"
+server_type = "e2-standard-4" # "n1-standard-1" # "f1-micro" #"e2-standard-2"
+client_type = "e2-standard-4"
 controller_type = "e2-standard-2"
 
 
@@ -405,7 +405,6 @@ class Machine:
                 self.execute("cd project/; make > /dev/null 2>&1")
             else:
                 self.execute("cd project/; make -j 4 > /dev/null 2>&1")
-        print(self.execute("ls -al ./"))
 
     def get_latencies(self, machines):
         self.copy_to("./myping", "")
