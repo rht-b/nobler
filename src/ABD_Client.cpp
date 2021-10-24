@@ -135,7 +135,13 @@ namespace ABD_helper{
                 if(data.size() != 0){
                     ret->push_back(data);
                     done[it->first] = true;
-//                    DPRINTF(DEBUG_ABD_Client, "one done.\n");
+
+                    if((operation == "get" || operation == "get_timestamp") && data[0] == "OPFAIL") {
+                        EASY_LOG_M("Returning since received response had OPFAIL");
+                        op_status = 0;
+                        break;
+                    }
+
                     if(number_of_received_responses(done) == quorom.size()){
                         EASY_LOG_M("Responses collected successfully");
                         op_status = 0;
@@ -194,6 +200,13 @@ namespace ABD_helper{
                     if(data.size() != 0){
                         ret->push_back(data);
                         done[it->first] = true;
+
+                        if((operation == "get" || operation == "get_timestamp") && data[0] == "OPFAIL") {
+                            EASY_LOG_M("Returning since received response had OPFAIL");
+                            op_status = 0;
+                            break;
+                        }
+
                         if(number_of_received_responses(done) == quorom.size()){
                             EASY_LOG_M("Responses collected successfully");
                             op_status = 0;
