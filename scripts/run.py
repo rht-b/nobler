@@ -13,8 +13,8 @@ import run_optimizer as optimizer
 from collections import OrderedDict
 import json
 
-server_type = "e2-standard-4" # "n1-standard-1" # "f1-micro" #"e2-standard-2"
-client_type = "e2-standard-4"
+server_type = "e2-standard-2" # "n1-standard-1" # "f1-micro" #"e2-standard-2"
+client_type = "e2-standard-2"
 controller_type = "e2-standard-2"
 
 

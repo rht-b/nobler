@@ -107,9 +107,10 @@ def read_operation_for_key(key, log_path, clients):
 
     print(len(getOptr[0]), len(getOptr[1]))
     print(len(putOptr[0]), len(putOptr[1]))
-    print(getOptr)
+    print("s8GetOptr= [", ",".join(str(e) for e in getOptr[0]), "; ", ",".join(str(e) for e in getOptr[1]), "];")
     print()
-    print(putOptr)
+    # print(putOptr)
+    print("s8PutOptr= [", ",".join(str(e) for e in putOptr[0]), "; ", ",".join(str(e) for e in putOptr[1]), "];")
     print()
     print()
 
@@ -189,7 +190,7 @@ def standardize_clients(clients):
 
 def plot_latencies(key):
 
-    server = "s8"
+    server = "s0"
     log_path = os.path.join(path, server)
     #log_path = ''
     log_path = os.path.join(log_path, "logs")
